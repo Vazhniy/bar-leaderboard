@@ -50,7 +50,7 @@ const userStates = {};
 const activeBattles = {}; 
 let activeTicTacToe = null;
 
-// Получение URL аватарки напрямую из Telegram
+// Получение URL аватарки из профиля Telegram
 async function getTelegramAvatarUrl(userId) {
     try {
         const photos = await bot.getUserProfilePhotos(userId, { limit: 1 });
@@ -65,7 +65,7 @@ async function getTelegramAvatarUrl(userId) {
     return '';
 }
 
-// Авто-обновление аватарки в базе данных
+// Автоматическая синхронизация аватарки при активности
 async function syncUserAvatar(tgId) {
     const avatarUrl = await getTelegramAvatarUrl(tgId);
     if (avatarUrl) {
@@ -148,7 +148,7 @@ bot.on('message', async (msg) => {
 
     if (text === "💬 Написать на ТВ") {
         userStates[chatId] = { action: 'AWAITING_CHAT_MESSAGE' };
-        bot.sendMessage(chatId, `✍️️ *Напиши сообщение для ТВ:*`);
+        bot.sendMessage(chatId, `✍️ *Напиши сообщение для ТВ:*`);
         return;
     }
 
@@ -316,8 +316,18 @@ bot.on('callback_query', (query) => {
                 accepted: false
             };
 
+            // Передаем очищенный объект без системного таймаута Node.js!
+            const payloadForTv = {
+                battleId,
+                type,
+                challengerTgId: tgId,
+                challengerName,
+                targetTgId,
+                targetName
+            };
+
             if (type === 'bomb') {
-                io.emit('battle_announced', activeBattles[battleId]);
+                io.emit('battle_announced', payloadForTv);
                 bot.sendMessage(targetTgId, `🚨 *ВНИМАНИЕ! (5 секунд)*\nГость *${challengerName}* вызывает тебя на *БОМБУ НА СКОРОСТЬ*! 💣`, {
                     reply_markup: {
                         inline_keyboard: [
@@ -327,7 +337,7 @@ bot.on('callback_query', (query) => {
                     }
                 });
             } else if (type === 'ttt') {
-                io.emit('ttt_announced', activeBattles[battleId]);
+                io.emit('ttt_announced', payloadForTv);
                 bot.sendMessage(targetTgId, `🚨 *ВНИМАНИЕ! (5 секунд)*\nГость *${challengerName}* вызывает тебя в *КРЕСТИКИ-НОЛИКИ* ❌⭕!`, {
                     reply_markup: {
                         inline_keyboard: [
@@ -350,7 +360,7 @@ bot.on('callback_query', (query) => {
             battle.accepted = true;
             clearTimeout(battle.timeoutTimer);
 
-            io.emit('battle_accepted', battle);
+            io.emit('battle_accepted', { challengerName: battle.challengerName, targetName: battle.targetName });
             bot.sendMessage(battle.challengerTgId, `🎉 *${battle.targetName} ПРИНЯЛ ТВОЙ ВЫЗОВ!* Бегом к стойке!`);
             bot.sendMessage(chatId, `🔥 *ТЫ ПРИНЯЛ ВЫЗОВ!* Марш к стойке!`);
         } else {
@@ -387,7 +397,7 @@ bot.on('callback_query', (query) => {
         const battle = activeBattles[battleId];
         if (battle) {
             clearTimeout(battle.timeoutTimer);
-            io.emit('battle_declined', battle);
+            io.emit('battle_declined', { challengerName: battle.challengerName, targetName: battle.targetName });
             bot.sendMessage(battle.challengerTgId, `🐔 *${battle.targetName} слился с баттла...*`);
             bot.sendMessage(chatId, `🚫 Вызов отклонен.`);
             delete activeBattles[battleId];
