@@ -198,6 +198,23 @@
         const chatContainer = document.getElementById('tv-chat-container');
         const projLayer = document.getElementById('projectiles-layer');
 
+        let countdownInterval = null;
+
+        function startCountdown(seconds) {
+            clearInterval(countdownInterval);
+            let timeLeft = seconds;
+            
+            countdownInterval = setInterval(() => {
+                timeLeft--;
+                if (timeLeft >= 0) {
+                    const statusText = bStatus.innerText.split('(')[0];
+                    bStatus.innerText = `${statusText} (${timeLeft} СЕК)`;
+                } else {
+                    clearInterval(countdownInterval);
+                }
+            }, 1000);
+        }
+
         async function updateLeaderboard() {
             try {
                 const res = await fetch('/api/leaderboard');
@@ -246,11 +263,8 @@
         updateLeaderboard();
         socket.on('update_board', updateLeaderboard);
 
-        // Оптимизированный полет реакций (Защита процессора ТВ от перегрузки)
         socket.on('throw_reaction', (data) => {
-            if (projLayer.children.length > 8) {
-                projLayer.removeChild(projLayer.children[0]); // Удаляем старые снаряды при спаме
-            }
+            if (projLayer.children.length > 8) projLayer.removeChild(projLayer.children[0]);
 
             const targetCard = document.getElementById(`guest-${data.targetId}`);
             let senderCard = data.senderId ? document.getElementById(`guest-${data.senderId}`) : null;
@@ -278,7 +292,7 @@
             setTimeout(() => {
                 proj.remove();
                 if (targetCard) {
-                    if (targetCard.children.length > 5) return; // Не плодим пятна при сильном спаме
+                    if (targetCard.children.length > 5) return;
                     const splat = document.createElement('div');
                     splat.className = 'splat-mark';
                     splat.innerText = data.item === '🍅' ? '💥🍅' : data.item === '💵' ? '💸' : data.item;
@@ -302,11 +316,13 @@
             bBadge.innerText = "❌⭕ ВЫЗОВ В КРЕСТИКИ-НОЛИКИ ❌⭕";
             p1Name.innerText = `${data.challengerName} (❌)`;
             p2Name.innerText = `${data.targetName} (⭕)`;
-            bStatus.innerText = "ЖДЁМ ПОДТВЕРЖДЕНИЯ В TELEGRAM...";
+            bStatus.innerText = "ОЖИДАНИЕ (5 СЕК)";
             overlay.style.display = 'flex';
+            startCountdown(5);
         });
 
         socket.on('ttt_started', (game) => {
+            clearInterval(countdownInterval);
             tttGrid.style.display = "grid";
             bBadge.innerText = "⚔️ ИГРА В РАЗГАРЕ! ⚔️";
             p1Name.innerText = `${game.playerX.name} (❌)`;
@@ -343,12 +359,28 @@
             bBadge.innerText = "💣 ВЫЗОВ НА БАТТЛ «БОМБА» 💣";
             p1Name.innerText = data.challengerName;
             p2Name.innerText = data.targetName;
-            bStatus.innerText = "ЖДЁМ ПОДТВЕРЖДЕНИЯ В TELEGRAM...";
+            bStatus.innerText = "ОЖИДАНИЕ (5 СЕК)";
             overlay.style.display = 'flex';
+            startCountdown(5);
         });
 
-        socket.on('battle_accepted', () => { bStatus.innerText = "БАРМЕН, ГОТОВЬ БОМБЫ! ВСЕ К СТОЙКЕ!"; });
-        socket.on('battle_declined', () => { bStatus.innerText = "ВЫЗОВ ОТКЛОНЁН!"; setTimeout(() => overlay.style.display = 'none', 3000); });
+        socket.on('battle_accepted', () => { 
+            clearInterval(countdownInterval);
+            bStatus.innerText = "БАРМЕН, ГОТОВЬ БОМБЫ! ВСЕ К СТОЙКЕ!"; 
+        });
+
+        socket.on('battle_declined', () => { 
+            clearInterval(countdownInterval);
+            bStatus.innerText = "ВЫЗОВ ОТКЛОНЁН!"; 
+            setTimeout(() => overlay.style.display = 'none', 2500); 
+        });
+
+        socket.on('battle_timeout', () => {
+            clearInterval(countdownInterval);
+            bStatus.innerText = "⏱ ВРЕМЯ ИСТЕКЛО!";
+            setTimeout(() => overlay.style.display = 'none', 2500);
+        });
+
         socket.on('battle_winner_announcement', (data) => {
             bStatus.innerText = `👑 ПОБЕДИТЕЛЬ: ${data.winnerName}!`;
             setTimeout(() => overlay.style.display = 'none', 5000);
