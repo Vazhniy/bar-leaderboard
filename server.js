@@ -38,14 +38,14 @@ db.serialize(() => {
 const bot = new TelegramBot(BOT_TOKEN, { polling: true });
 const userStates = {};
 let activeBattle = null;
-let activeTicTacToe = null; // Данные игры в крестики-нолики
+let activeTicTacToe = null;
 
 const mainMenuKeyboard = {
     reply_markup: {
         keyboard: [
-            [{ text: "💬 Написать на ТВ" }, { text: "⚔️ Баттлы" }],
-            [{ text: "🔥 Кто в баре" }, { text: "🏆 Мой профиль" }],
-            [{ text: "📊 Топ бара" }]
+            [{ text: "💬 Написать на ТВ" }, { text: "🎯 Кинуть реакцию" }],
+            [{ text: "⚔️ Баттлы" }, { text: "🔥 Кто в баре" }],
+            [{ text: "🏆 Мой профиль" }, { text: "📊 Топ бара" }]
         ],
         resize_keyboard: true
     }
@@ -111,6 +111,11 @@ bot.on('message', (msg) => {
         return;
     }
 
+    if (text === "🎯 Кинуть реакцию") {
+        sendReactionTargetList(chatId, tgId);
+        return;
+    }
+
     if (text === "⚔️ Баттлы") {
         bot.sendMessage(chatId, `🎯 *ВЫБЕРИ ТИП БАТТЛА:*`, {
             reply_markup: {
@@ -127,6 +132,22 @@ bot.on('message', (msg) => {
     if (text === "🏆 Мой профиль") { sendUserProfile(chatId, tgId); return; }
     if (text === "📊 Топ бара") { sendLeaderboardList(chatId); return; }
 });
+
+function sendReactionTargetList(chatId, tgId) {
+    db.all(`SELECT id, name FROM guests WHERE count > 0 OR bombs > 0`, [], (err, rows) => {
+        if (!rows || rows.length === 0) {
+            bot.sendMessage(chatId, "⚠️ В баре пока никого нет!", mainMenuKeyboard);
+        } else {
+            const buttons = rows.map(r => [{
+                text: `🎯 Кинуть в: ${r.name}`,
+                callback_data: `react_target_${r.id}_${r.name}`
+            }]);
+            bot.sendMessage(chatId, "🎯 *В КОГО БРОСАЕМ?*", {
+                reply_markup: { inline_keyboard: buttons }
+            });
+        }
+    });
+}
 
 function sendUserProfile(chatId, tgId) {
     db.get(`SELECT * FROM guests WHERE telegram_id = ?`, [tgId], (err, guest) => {
@@ -161,7 +182,7 @@ function showOpponentsList(chatId, tgId, type) {
                 text: `⚔️ Вызвать: ${r.name}`,
                 callback_data: `challenge_${type}_${r.telegram_id}_${r.name}`
             }]);
-            bot.sendMessage(chatId, `🎯 *ВЫБЕРИ СОПЕРНИКА ДЛЯ ${type === 'ttt' ? 'КРЕСТИКОВ-НОЛИКОВ ❌⭕' : 'БОМБЫ 💣'}:*`, {
+            bot.sendMessage(chatId, `🎯 *ВЫБЕРИ СОПЕРНИКА:*`, {
                 reply_markup: { inline_keyboard: buttons }
             });
         }
@@ -177,6 +198,55 @@ bot.on('callback_query', (query) => {
     const state = userStates[chatId];
     if (data === 'use_default_name' && state) {
         registerNewGuest(chatId, state.tgId, state.defaultName);
+        bot.answerCallbackQuery(query.id);
+        return;
+    }
+
+    // Выбор снаряда для броска
+    if (data.startsWith('react_target_')) {
+        const parts = data.split('_');
+        const targetId = parts[2];
+        const targetName = parts[3];
+
+        bot.sendMessage(chatId, `🚀 *ЧЕМ КИДАЕМ В ${targetName.toUpperCase()}?*`, {
+            reply_markup: {
+                inline_keyboard: [
+                    [
+                        { text: "🍅 Помидор", callback_data: `throw_🍅_${targetId}` },
+                        { text: "💵 Деньги", callback_data: `throw_💵_${targetId}` },
+                        { text: "🍺 Пиво", callback_data: `throw_🍺_${targetId}` }
+                    ],
+                    [
+                        { text: "💩 Какашка", callback_data: `throw_💩_${targetId}` },
+                        { text: "💖 Сердечко", callback_data: `throw_💖_${targetId}` }
+                    ]
+                ]
+            }
+        });
+        bot.answerCallbackQuery(query.id);
+        return;
+    }
+
+    // Запуск броска снаряда
+    if (data.startsWith('throw_')) {
+        const parts = data.split('_');
+        const item = parts[1];
+        const targetId = parts[2];
+
+        db.get(`SELECT id, name FROM guests WHERE telegram_id = ?`, [tgId], (err, sender) => {
+            const senderId = sender ? sender.id : null;
+            const senderName = sender ? sender.name : 'Аноним';
+
+            // Отправляем анимированный бросок на ТВ
+            io.emit('throw_reaction', {
+                item,
+                senderId,
+                senderName,
+                targetId
+            });
+
+            bot.sendMessage(chatId, `🎯 *${item} полетел в цель! Смотри на экран ТВ!*`, mainMenuKeyboard);
+        });
         bot.answerCallbackQuery(query.id);
         return;
     }
@@ -225,7 +295,7 @@ bot.on('callback_query', (query) => {
     if (data === 'accept_bomb') {
         if (activeBattle) {
             io.emit('battle_accepted', activeBattle);
-            bot.sendMessage(activeBattle.challengerTgId, `🎉 *${activeBattle.targetName} ПРИНЯЛ ТВОЙ ВЫЗОВ!* Бегом к барной стойке!`);
+            bot.sendMessage(activeBattle.challengerTgId, `🎉 *${activeBattle.targetName} ПРИНЯЛ ТВОЙ ВЫЗОВ!* Бегом к стойке!`);
             bot.sendMessage(chatId, `🔥 *ТЫ ПРИНЯЛ ВЫЗОВ!* Марш к стойке!`);
         }
         bot.answerCallbackQuery(query.id);
@@ -239,9 +309,7 @@ bot.on('callback_query', (query) => {
                 board: Array(9).fill(" "),
                 turn: 'X'
             };
-
             io.emit('ttt_started', activeTicTacToe);
-
             sendTicTacToeBoard(activeTicTacToe.playerX.tgId);
             sendTicTacToeBoard(activeTicTacToe.playerO.tgId);
         }
@@ -258,10 +326,8 @@ bot.on('callback_query', (query) => {
         bot.answerCallbackQuery(query.id);
     }
 
-    // Ходы в Крестики-Нолики
     if (data.startsWith('ttt_move_')) {
         const cellIndex = parseInt(data.replace('ttt_move_', ''));
-
         if (!activeTicTacToe) return bot.answerCallbackQuery(query.id, { text: "Игра завершена." });
 
         const currentTurnTgId = activeTicTacToe.turn === 'X' ? activeTicTacToe.playerX.tgId : activeTicTacToe.playerO.tgId;
@@ -275,8 +341,6 @@ bot.on('callback_query', (query) => {
         }
 
         activeTicTacToe.board[cellIndex] = activeTicTacToe.turn;
-        
-        // Передача обновления на ТВ
         io.emit('ttt_update', activeTicTacToe);
 
         const winner = checkTicTacToeWinner(activeTicTacToe.board);
@@ -331,9 +395,7 @@ function checkTicTacToeWinner(b) {
         [0,4,8], [2,4,6]
     ];
     for (let l of lines) {
-        if (b[l[0]] !== " " && b[l[0]] === b[l[1]] && b[l[1]] === b[l[2]]) {
-            return b[l[0]];
-        }
+        if (b[l[0]] !== " " && b[l[0]] === b[l[1]] && b[l[1]] === b[l[2]]) return b[l[0]];
     }
     return null;
 }
@@ -350,7 +412,6 @@ function handleTicTacToeEnd(result) {
         db.run(`UPDATE guests SET wins = wins + 1 WHERE telegram_id = ?`, [winnerObj.tgId], () => {
             io.emit('update_board');
             io.emit('ttt_ended', { winnerName: winnerObj.name, draw: false });
-
             bot.sendMessage(winnerObj.tgId, `🏆 *ПОБЕДА В КРЕСТИКАХ-НОЛИКАХ!* Тебе зачислена 👑 +1 Победа!`);
             bot.sendMessage(loserObj.tgId, `😢 *ПОРАЖЕНИЕ В КРЕСТИКАХ-НОЛИКАХ!* Победу одержал ${winnerObj.name}`);
         });
