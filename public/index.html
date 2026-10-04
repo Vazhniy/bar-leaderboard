@@ -28,87 +28,26 @@
             display: flex;
             flex-direction: column;
             align-items: center;
-            padding: 35px 50px;
+            padding: 35px 50px 140px 50px;
             overflow: hidden;
             position: relative;
         }
 
-        /* Заголовок "НА ДНЕ" */
-        .header {
-            text-align: center;
-            margin-bottom: 35px;
-            display: flex;
-            flex-direction: column;
-            align-items: center;
-        }
-
+        .header { text-align: center; margin-bottom: 35px; }
         .header h1 {
-            font-family: 'Russo One', sans-serif;
-            font-size: 6.5rem;
-            color: #ffffff;
-            text-transform: uppercase;
-            letter-spacing: 12px;
-            margin-left: 12px; /* компенсация отступа letter-spacing */
-            line-height: 1;
-            position: relative;
-            text-shadow: 
-                0 0 5px #fff,
-                0 0 10px #fff,
-                0 0 20px var(--blood-red),
-                0 0 40px var(--blood-red),
-                0 0 80px var(--blood-red),
-                0 0 100px var(--blood-red);
+            font-family: 'Russo One', sans-serif; font-size: 6.5rem; color: #ffffff;
+            text-transform: uppercase; letter-spacing: 12px; margin-left: 12px; line-height: 1;
+            text-shadow: 0 0 5px #fff, 0 0 20px var(--blood-red), 0 0 40px var(--blood-red);
             animation: neonPulse 3.5s infinite alternate;
         }
-
         .header .subtitle {
-            font-family: 'VT323', monospace;
-            font-size: 2.2rem;
-            color: var(--dirty-yellow);
-            letter-spacing: 4px;
-            text-transform: uppercase;
-            margin-top: 10px;
-            background: #000;
-            display: inline-block;
-            padding: 4px 20px;
-            border: 2px solid var(--dirty-yellow);
-            box-shadow: 0 0 15px rgba(229, 169, 16, 0.3);
-            transform: rotate(-1deg);
+            font-family: 'VT323', monospace; font-size: 2.2rem; color: var(--dirty-yellow);
+            letter-spacing: 4px; background: #000; padding: 4px 20px; border: 2px solid var(--dirty-yellow);
         }
 
-        /* Анимация пульсации и легкого скачка питания */
         @keyframes neonPulse {
-            0%, 100% {
-                text-shadow: 
-                    0 0 5px #fff,
-                    0 0 12px #fff,
-                    0 0 25px var(--blood-red),
-                    0 0 50px var(--blood-red),
-                    0 0 90px var(--blood-red);
-                opacity: 1;
-            }
-            50% {
-                text-shadow: 
-                    0 0 3px #fff,
-                    0 0 8px #fff,
-                    0 0 18px var(--blood-red),
-                    0 0 35px var(--blood-red),
-                    0 0 60px var(--blood-red);
-                opacity: 0.92;
-            }
-            52% {
-                text-shadow: none;
-                color: #4a0600;
-                opacity: 0.4;
-            }
-            54% {
-                text-shadow: 
-                    0 0 5px #fff,
-                    0 0 12px #fff,
-                    0 0 25px var(--blood-red),
-                    0 0 50px var(--blood-red);
-                opacity: 1;
-            }
+            0%, 100% { opacity: 1; }
+            50% { opacity: 0.88; }
         }
 
         .board { width: 100%; max-width: 1000px; display: flex; flex-direction: column; gap: 20px; }
@@ -129,144 +68,95 @@
         .name { font-size: 2.3rem; color: #eee; }
         
         .battle-stats {
-            font-family: 'VT323', monospace;
-            font-size: 1.4rem;
-            color: #ffaa00;
-            display: flex;
-            gap: 15px;
-            margin-top: 2px;
+            font-family: 'VT323', monospace; font-size: 1.4rem; color: #ffaa00; display: flex; gap: 15px; margin-top: 2px;
         }
 
         .score-box { text-align: right; background: #000; padding: 8px 15px; border: 2px dashed #444; }
         .score { font-family: 'VT323', monospace; font-size: 3.2rem; color: var(--blood-red); }
         .unit { font-family: 'VT323', monospace; font-size: 1.3rem; color: #777; }
 
-        /* ВСПЛЫВАЮЩИЙ ОВЕРЛЕЙ БАТТЛА */
+        /* ИНТЕРАКТИВНЫЙ БАРНЫЙ ЧАТ НА ЭКРАНЕ ТВ */
+        #tv-chat-container {
+            position: fixed;
+            bottom: 25px;
+            left: 50%;
+            transform: translateX(-50%);
+            width: 90%;
+            max-width: 900px;
+            display: flex;
+            flex-direction: column;
+            gap: 12px;
+            pointer-events: none;
+            z-index: 8000;
+        }
+
+        .chat-bubble {
+            background: rgba(18, 12, 12, 0.95);
+            border: 2px solid var(--dirty-yellow);
+            box-shadow: 0 0 25px rgba(229, 169, 16, 0.4), 5px 5px 0 #000;
+            border-radius: 12px;
+            padding: 15px 25px;
+            display: flex;
+            align-items: center;
+            gap: 15px;
+            animation: bubblePop 0.5s cubic-bezier(0.175, 0.885, 0.32, 1.275);
+            transition: all 0.5s ease;
+        }
+
+        @keyframes bubblePop {
+            0% { transform: translateY(40px) scale(0.8); opacity: 0; }
+            100% { transform: translateY(0) scale(1); opacity: 1; }
+        }
+
+        .chat-sender {
+            font-family: 'Russo One', sans-serif;
+            font-size: 1.6rem;
+            color: var(--dirty-yellow);
+            background: #000;
+            padding: 4px 12px;
+            border-radius: 6px;
+            border: 1px solid #444;
+            white-space: nowrap;
+        }
+
+        .chat-text {
+            font-family: 'Russo One', sans-serif;
+            font-size: 1.8rem;
+            color: #fff;
+            text-shadow: 2px 2px 0 #000;
+            word-break: break-word;
+        }
+
+        /* ОВЕРЛЕЙ БАТТЛА */
         #battle-overlay {
             position: fixed; top: 0; left: 0; width: 100vw; height: 100vh;
-            background: rgba(5, 2, 2, 0.92);
-            backdrop-filter: blur(8px);
+            background: rgba(5, 2, 2, 0.92); backdrop-filter: blur(8px);
             display: none; flex-direction: column; align-items: center; justify-content: center;
             z-index: 9999; padding: 20px;
         }
 
         .battle-card {
-            background: #111;
-            border: 4px solid var(--blood-red);
-            box-shadow: 0 0 50px rgba(209, 17, 0, 0.6), inset 0 0 30px rgba(0,0,0,0.9);
-            border-radius: 20px;
-            padding: 40px 60px;
-            max-width: 900px;
-            width: 90%;
-            text-align: center;
-            display: flex;
-            flex-direction: column;
-            align-items: center;
-            position: relative;
-            animation: cardAppear 0.4s cubic-bezier(0.175, 0.885, 0.32, 1.275);
-        }
-
-        @keyframes cardAppear {
-            0% { transform: scale(0.7); opacity: 0; }
-            100% { transform: scale(1); opacity: 1; }
+            background: #111; border: 4px solid var(--blood-red);
+            box-shadow: 0 0 50px rgba(209, 17, 0, 0.6); border-radius: 20px;
+            padding: 40px 60px; max-width: 900px; width: 90%; text-align: center;
+            display: flex; flex-direction: column; align-items: center;
         }
 
         .battle-badge {
-            background: var(--blood-red);
-            color: #fff;
-            font-family: 'Russo One', sans-serif;
-            font-size: 1.8rem;
-            padding: 8px 25px;
-            border-radius: 50px;
-            letter-spacing: 2px;
-            text-transform: uppercase;
-            box-shadow: 0 0 15px var(--blood-red);
-            margin-bottom: 25px;
+            background: var(--blood-red); color: #fff; font-size: 1.8rem;
+            padding: 8px 25px; border-radius: 50px; margin-bottom: 25px;
         }
 
-        .versus-container {
-            display: flex;
-            align-items: center;
-            justify-content: center;
-            gap: 25px;
-            width: 100%;
-            margin: 20px 0 30px 0;
-        }
+        .versus-container { display: flex; align-items: center; justify-content: center; gap: 25px; width: 100%; margin: 20px 0 30px 0; }
+        .player-box { background: #1a1a1a; border: 2px solid #333; border-radius: 12px; padding: 20px; flex: 1; max-width: 350px; }
+        .player-name { font-size: 2.8rem; color: #fff; }
+        .vs-circle { background: var(--dirty-yellow); color: #000; font-size: 2.2rem; width: 70px; height: 70px; border-radius: 50%; display: flex; align-items: center; justify-content: center; }
+        .battle-status-box { background: #000; border: 1px dashed var(--dirty-yellow); padding: 12px 30px; border-radius: 8px; }
+        .battle-status-text { font-family: 'VT323', monospace; font-size: 2.2rem; color: var(--dirty-yellow); }
 
-        .player-box {
-            background: #1a1a1a;
-            border: 2px solid #333;
-            border-radius: 12px;
-            padding: 20px;
-            flex: 1;
-            max-width: 350px;
-            box-shadow: inset 0 0 15px #000;
-        }
-
-        .player-name {
-            font-family: 'Russo One', sans-serif;
-            font-size: 2.8rem;
-            color: #fff;
-            word-break: break-word;
-            text-shadow: 2px 2px 0 #000;
-        }
-
-        .vs-circle {
-            background: var(--dirty-yellow);
-            color: #000;
-            font-family: 'Russo One', sans-serif;
-            font-size: 2.2rem;
-            width: 70px;
-            height: 70px;
-            border-radius: 50%;
-            display: flex;
-            align-items: center;
-            justify-content: center;
-            box-shadow: 0 0 25px var(--dirty-yellow);
-            flex-shrink: 0;
-            transform: rotate(-5deg);
-        }
-
-        .battle-status-box {
-            background: #000;
-            border: 1px dashed var(--dirty-yellow);
-            padding: 12px 30px;
-            border-radius: 8px;
-            margin-top: 10px;
-        }
-
-        .battle-status-text {
-            font-family: 'VT323', monospace;
-            font-size: 2.2rem;
-            color: var(--dirty-yellow);
-            letter-spacing: 1px;
-        }
-
-        .winner-card {
-            border-color: var(--dirty-yellow) !important;
-            box-shadow: 0 0 60px rgba(229, 169, 16, 0.7) !important;
-            background: radial-gradient(circle at center, #221a00 0%, #0d0d0d 100%) !important;
-        }
-
-        .winner-badge {
-            background: var(--dirty-yellow) !important;
-            color: #000 !important;
-            box-shadow: 0 0 20px var(--dirty-yellow) !important;
-        }
-
-        .winner-name-single {
-            font-family: 'Russo One', sans-serif;
-            font-size: 4.5rem;
-            color: var(--dirty-yellow);
-            text-shadow: 0 0 25px var(--dirty-yellow), 3px 3px 0 #000;
-            margin: 15px 0;
-            animation: winnerPulse 0.8s infinite alternate ease-in-out;
-        }
-
-        @keyframes winnerPulse {
-            0% { transform: scale(1); }
-            100% { transform: scale(1.08); }
-        }
+        .winner-card { border-color: var(--dirty-yellow) !important; box-shadow: 0 0 60px rgba(229, 169, 16, 0.7) !important; }
+        .winner-badge { background: var(--dirty-yellow) !important; color: #000 !important; }
+        .winner-name-single { font-size: 4.5rem; color: var(--dirty-yellow); text-shadow: 0 0 25px var(--dirty-yellow); margin: 15px 0; }
     </style>
 </head>
 <body>
@@ -278,18 +168,18 @@
 
     <div class="board" id="board"></div>
 
+    <!-- ВСПЛЫВАЮЩИЙ ЧАТ НА ЭКРАНЕ ТВ -->
+    <div id="tv-chat-container"></div>
+
+    <!-- ВСПЛЫВАЮЩЕЕ ОКНО БАТТЛА -->
     <div id="battle-overlay">
         <div class="battle-card" id="b-card">
             <div class="battle-badge" id="b-badge">💣 ВЫЗОВ НА БАТТЛ «БОМБА» 💣</div>
             
             <div class="versus-container" id="b-vs-box">
-                <div class="player-box">
-                    <div class="player-name" id="p1-name">ИГРОК 1</div>
-                </div>
+                <div class="player-box"><div class="player-name" id="p1-name">ИГРОК 1</div></div>
                 <div class="vs-circle">VS</div>
-                <div class="player-box">
-                    <div class="player-name" id="p2-name">ИГРОК 2</div>
-                </div>
+                <div class="player-box"><div class="player-name" id="p2-name">ИГРОК 2</div></div>
             </div>
 
             <div class="winner-name-single" id="winner-single" style="display: none;"></div>
@@ -311,6 +201,7 @@
         const p2Name = document.getElementById('p2-name');
         const winnerSingle = document.getElementById('winner-single');
         const bStatus = document.getElementById('b-status');
+        const chatContainer = document.getElementById('tv-chat-container');
 
         async function updateLeaderboard() {
             try {
@@ -358,14 +249,37 @@
         updateLeaderboard();
         socket.on('update_board', updateLeaderboard);
 
+        // Обработка сообщений барного чата
+        socket.on('tv_chat_message', (data) => {
+            const bubble = document.createElement('div');
+            bubble.className = 'chat-bubble';
+            bubble.innerHTML = `
+                <div class="chat-sender">💬 ${data.sender}:</div>
+                <div class="chat-text">${data.text}</div>
+            `;
+            
+            chatContainer.appendChild(bubble);
+
+            // Держим не более 3 сообщений одновременно
+            if (chatContainer.children.length > 3) {
+                chatContainer.removeChild(chatContainer.children[0]);
+            }
+
+            // Через 12 секунд плавно скрываем сообщение
+            setTimeout(() => {
+                bubble.style.opacity = '0';
+                bubble.style.transform = 'translateY(-20px)';
+                setTimeout(() => bubble.remove(), 500);
+            }, 12000);
+        });
+
+        // Баттлы
         socket.on('battle_announced', (data) => {
             bCard.className = "battle-card";
             bBadge.className = "battle-badge";
             bBadge.innerText = "💣 ВЫЗОВ НА БАТТЛ «БОМБА» 💣";
-            
             bVsBox.style.display = "flex";
             winnerSingle.style.display = "none";
-
             p1Name.innerText = data.challengerName;
             p2Name.innerText = data.targetName;
             bStatus.innerText = "ЖДЁМ ПОДТВЕРЖДЕНИЯ В TELEGRAM...";
@@ -387,16 +301,11 @@
             bCard.className = "battle-card winner-card";
             bBadge.className = "battle-badge winner-badge";
             bBadge.innerText = "👑 ПОБЕДИТЕЛЬ БАТТЛА 👑";
-
             bVsBox.style.display = "none";
             winnerSingle.style.display = "block";
             winnerSingle.innerText = data.winnerName;
-
             bStatus.innerText = "💣 +1 БОМБА И 👑 ПОБЕДА ЗАЧИСЛЕНЫ!";
-
-            setTimeout(() => {
-                overlay.style.display = 'none';
-            }, 7000);
+            setTimeout(() => { overlay.style.display = 'none'; }, 7000);
         });
     </script>
 </body>
