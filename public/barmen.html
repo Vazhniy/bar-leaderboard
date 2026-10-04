@@ -1,0 +1,49 @@
+<!DOCTYPE html>
+<html lang="ru">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Экран Бармена</title>
+    <style>
+        body {
+            background: #0d0d14; color: #fff; font-family: -apple-system, sans-serif;
+            display: flex; flex-direction: column; align-items: center; justify-content: center;
+            min-height: 100vh; margin: 0; text-align: center; padding: 20px;
+        }
+        h1 { color: #00f0ff; font-size: 2rem; margin-bottom: 10px; }
+        p { color: #aaa; margin-bottom: 20px; }
+        .qr-card { background: #fff; padding: 20px; border-radius: 20px; box-shadow: 0 0 30px rgba(0,240,255,0.3); }
+        img { width: 280px; height: 280px; display: block; }
+        button {
+            margin-top: 35px; background: rgba(255, 0, 85, 0.2); border: 1px solid #ff0055;
+            color: #ff0055; padding: 12px 24px; border-radius: 12px; font-weight: bold; cursor: pointer;
+        }
+    </style>
+</head>
+<body>
+    <h1>🍹 ЭКРАН БАРМЕНА</h1>
+    <p>Покажите этот QR-код гостю после выпитого шота</p>
+    <div class="qr-card">
+        <img id="qr-img" src="" alt="QR-код">
+    </div>
+    <button onclick="resetShift()">🧹 Очистить табло (Новая смена)</button>
+
+    <script src="https://cdn.jsdelivr.net/npm/qrcode@1.5.1/build/qrcode.min.js"></script>
+    <script>
+        fetch('/api/config')
+            .then(res => res.json())
+            .then(data => {
+                const qrLink = `https://t.me/${data.botUsername}?start=scan`;
+                QRCode.toDataURL(qrLink, { width: 300 }, (err, url) => {
+                    document.getElementById('qr-img').src = url;
+                });
+            });
+
+        function resetShift() {
+            if (confirm("Вы уверены, что хотите обнулить счетчики на ТВ для новой смены?")) {
+                fetch('/api/reset', { method: 'POST' }).then(() => alert("Табло сброшено!"));
+            }
+        }
+    </script>
+</body>
+</html>
