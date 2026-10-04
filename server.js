@@ -19,11 +19,9 @@ const BOT_USERNAME = process.env.BOT_USERNAME;
 
 if (!BOT_TOKEN) console.error("ОШИБКА: BOT_TOKEN не задан!");
 
-// Подключение базы данных с защитой от блокировок
 const db = new sqlite3.Database('./database.sqlite');
 
 db.serialize(() => {
-    // Включаем WAL-режим и таймаут ожидания записи (защита от SQLITE_BUSY)
     db.run("PRAGMA journal_mode = WAL;");
     db.run("PRAGMA busy_timeout = 5000;");
 
@@ -42,13 +40,12 @@ db.serialize(() => {
 
 const bot = new TelegramBot(BOT_TOKEN, { polling: true });
 
-// Предотвращение падения бота при сетевых ошибках Telegram API
 bot.on('polling_error', (error) => {
     console.error(`[Telegram Polling Error] ${error.code || error.message}`);
 });
 
 const userStates = {};
-const activeBattles = {}; // Очередь независимых дуэлей
+const activeBattles = {}; 
 let activeTicTacToe = null;
 
 const mainMenuKeyboard = {
@@ -267,31 +264,50 @@ bot.on('callback_query', (query) => {
         db.get(`SELECT name FROM guests WHERE telegram_id = ?`, [tgId], (err, challenger) => {
             const challengerName = challenger ? challenger.name : 'Аноним';
 
-            activeBattles[battleId] = { battleId, type, challengerTgId: tgId, challengerName, targetTgId, targetName };
+            // Автоотмена через 5 секунд, если противник не принял вызов
+            const timeoutTimer = setTimeout(() => {
+                if (activeBattles[battleId] && !activeBattles[battleId].accepted) {
+                    io.emit('battle_timeout', { challengerName, targetName });
+                    bot.sendMessage(tgId, `⏱ *${targetName} не успел ответить на вызов за 5 секунд!*`);
+                    bot.sendMessage(targetTgId, `⏱ *Время на принятие вызова от ${challengerName} истекло!*`);
+                    delete activeBattles[battleId];
+                }
+            }, 5000);
+
+            activeBattles[battleId] = { 
+                battleId, 
+                type, 
+                challengerTgId: tgId, 
+                challengerName, 
+                targetTgId, 
+                targetName,
+                timeoutTimer,
+                accepted: false
+            };
 
             if (type === 'bomb') {
                 io.emit('battle_announced', activeBattles[battleId]);
-                bot.sendMessage(targetTgId, `🚨 *ВНИМАНИЕ!* Гость *${challengerName}* вызывает тебя на *БОМБУ НА СКОРОСТЬ*! 💣`, {
+                bot.sendMessage(targetTgId, `🚨 *ВНИМАНИЕ! (5 секунд)*\nГость *${challengerName}* вызывает тебя на *БОМБУ НА СКОРОСТЬ*! 💣`, {
                     reply_markup: {
                         inline_keyboard: [
-                            [{ text: "🔥 ПРИНЯТЬ ВЫЗОВ ⚔️", callback_data: `accept_bomb_${battleId}` }],
+                            [{ text: "🔥 ПРИНЯТЬ ВЫЗОВ (5с) ⚔️", callback_data: `accept_bomb_${battleId}` }],
                             [{ text: "🐓 Зассал / Отмена", callback_data: `decline_battle_${battleId}` }]
                         ]
                     }
                 });
             } else if (type === 'ttt') {
                 io.emit('ttt_announced', activeBattles[battleId]);
-                bot.sendMessage(targetTgId, `🚨 *ВНИМАНИЕ!* Гость *${challengerName}* вызывает тебя в *КРЕСТИКИ-НОЛИКИ* ❌⭕!`, {
+                bot.sendMessage(targetTgId, `🚨 *ВНИМАНИЕ! (5 секунд)*\nГость *${challengerName}* вызывает тебя в *КРЕСТИКИ-НОЛИКИ* ❌⭕!`, {
                     reply_markup: {
                         inline_keyboard: [
-                            [{ text: "⚔️ ПРИНЯТЬ БОЙ ❌⭕", callback_data: `accept_ttt_${battleId}` }],
+                            [{ text: "⚔️ ПРИНЯТЬ БОЙ (5с) ❌⭕", callback_data: `accept_ttt_${battleId}` }],
                             [{ text: "🐓 Зассал / Отмена", callback_data: `decline_battle_${battleId}` }]
                         ]
                     }
                 });
             }
 
-            bot.sendMessage(chatId, `💣 Вызов брошен игроку *${targetName}*! Смотри на ТВ!`);
+            bot.sendMessage(chatId, `💣 Вызов брошен игроку *${targetName}*! У него 5 секунд!`);
         });
         bot.answerCallbackQuery(query.id).catch(() => {});
     }
@@ -300,9 +316,14 @@ bot.on('callback_query', (query) => {
         const battleId = data.replace('accept_bomb_', '');
         const battle = activeBattles[battleId];
         if (battle) {
+            battle.accepted = true;
+            clearTimeout(battle.timeoutTimer); // Отменяем таймер автоотмены
+
             io.emit('battle_accepted', battle);
             bot.sendMessage(battle.challengerTgId, `🎉 *${battle.targetName} ПРИНЯЛ ТВОЙ ВЫЗОВ!* Бегом к стойке!`);
             bot.sendMessage(chatId, `🔥 *ТЫ ПРИНЯЛ ВЫЗОВ!* Марш к стойке!`);
+        } else {
+            bot.sendMessage(chatId, `⏱ *Время на принятие вызова уже истекло!*`);
         }
         bot.answerCallbackQuery(query.id).catch(() => {});
     }
@@ -311,6 +332,9 @@ bot.on('callback_query', (query) => {
         const battleId = data.replace('accept_ttt_', '');
         const battle = activeBattles[battleId];
         if (battle) {
+            battle.accepted = true;
+            clearTimeout(battle.timeoutTimer); // Отменяем таймер автоотмены
+
             activeTicTacToe = {
                 battleId,
                 playerX: { tgId: battle.challengerTgId, name: battle.challengerName },
@@ -321,6 +345,8 @@ bot.on('callback_query', (query) => {
             io.emit('ttt_started', activeTicTacToe);
             sendTicTacToeBoard(activeTicTacToe.playerX.tgId);
             sendTicTacToeBoard(activeTicTacToe.playerO.tgId);
+        } else {
+            bot.sendMessage(chatId, `⏱ *Время на принятие вызова уже истекло!*`);
         }
         bot.answerCallbackQuery(query.id).catch(() => {});
     }
@@ -329,6 +355,7 @@ bot.on('callback_query', (query) => {
         const battleId = data.replace('decline_battle_', '');
         const battle = activeBattles[battleId];
         if (battle) {
+            clearTimeout(battle.timeoutTimer);
             io.emit('battle_declined', battle);
             bot.sendMessage(battle.challengerTgId, `🐔 *${battle.targetName} слился с баттла...*`);
             bot.sendMessage(chatId, `🚫 Вызов отклонен.`);
