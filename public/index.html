@@ -34,16 +34,33 @@
             position: relative;
         }
 
+        /* Заголовок "НА ДНЕ" и "MINSK SHOT BAR" единым шрифтом VT323 */
         .header { text-align: center; margin-bottom: 35px; }
         .header h1 {
-            font-family: 'Russo One', sans-serif; font-size: 6.5rem; color: #ffffff;
-            text-transform: uppercase; letter-spacing: 12px; margin-left: 12px; line-height: 1;
-            text-shadow: 0 0 5px #fff, 0 0 20px var(--blood-red), 0 0 40px var(--blood-red);
+            font-family: 'VT323', monospace;
+            font-size: 8rem;
+            color: #ffffff;
+            text-transform: uppercase;
+            letter-spacing: 8px;
+            line-height: 0.9;
+            text-shadow: 
+                0 0 5px #fff,
+                0 0 15px var(--blood-red),
+                0 0 35px var(--blood-red),
+                0 0 70px var(--blood-red);
             animation: neonPulse 3.5s infinite alternate;
         }
         .header .subtitle {
-            font-family: 'VT323', monospace; font-size: 2.2rem; color: var(--dirty-yellow);
-            letter-spacing: 4px; background: #000; padding: 4px 20px; border: 2px solid var(--dirty-yellow);
+            font-family: 'VT323', monospace;
+            font-size: 2.2rem;
+            color: var(--dirty-yellow);
+            letter-spacing: 4px;
+            text-transform: uppercase;
+            background: #000;
+            padding: 4px 20px;
+            border: 2px solid var(--dirty-yellow);
+            display: inline-block;
+            margin-top: 10px;
         }
 
         @keyframes neonPulse {
@@ -61,9 +78,7 @@
         .card:nth-child(odd) { transform: rotate(-0.8deg); }
         .card:nth-child(even) { transform: rotate(0.8deg); }
 
-        /* ========================================================
-           🔥 ЭФФЕКТ ОГНЯ ДЛЯ 1-ГО МЕСТА
-           ======================================================== */
+        /* 🔥 ЭФФЕКТ ОГНЯ ДЛЯ 1-ГО МЕСТА */
         .card.rank-1 { 
             border-color: #ffaa00; 
             background: linear-gradient(135deg, #3a1200 0%, #1a0800 50%, #0d0d0d 100%);
@@ -87,7 +102,6 @@
             text-shadow: 0 0 15px #ff5500;
         }
 
-        /* Анимация пульсации огня вокруг 1-го места */
         @keyframes fireGlow {
             0% {
                 box-shadow: 
@@ -115,7 +129,6 @@
             }
         }
 
-        /* Легкая огненная дрожь */
         @keyframes cardShake {
             0%, 100% { transform: rotate(-0.5deg) translateY(0); }
             50% { transform: rotate(0.5deg) translateY(-2px); }
