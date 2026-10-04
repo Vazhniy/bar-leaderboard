@@ -41,12 +41,12 @@
 
         @keyframes neonPulse { 0%, 100% { opacity: 1; } 50% { opacity: 0.88; } }
 
-        .board { width: 100%; max-width: 1000px; display: flex; flex-direction: column; gap: 18px; }
+        .board { width: 100%; max-width: 1000px; display: flex; flex-direction: column; gap: 18px; position: relative; }
 
         .card {
             background: var(--card-bg); border: 3px solid #333; padding: 12px 25px;
             display: grid; grid-template-columns: 110px 1fr auto; align-items: center;
-            box-shadow: 8px 8px 0px rgba(0,0,0,0.8); transition: all 0.3s ease;
+            box-shadow: 8px 8px 0px rgba(0,0,0,0.8); transition: all 0.3s ease; position: relative;
         }
         .card:nth-child(odd) { transform: rotate(-0.6deg); }
         .card:nth-child(even) { transform: rotate(0.6deg); }
@@ -67,6 +67,33 @@
         .score-box { text-align: right; background: #000; padding: 6px 18px; border: 2px dashed #444; }
         .score { font-size: 3.8rem; color: var(--blood-red); }
         .unit { font-size: 1.6rem; color: #777; }
+
+        /* ИНТЕРАКТИВНЫЙ ПОЛЕТ РЕАКЦИЙ ПО ЭКРАНУ */
+        .projectile {
+            position: fixed;
+            font-size: 4rem;
+            z-index: 9999;
+            pointer-events: none;
+            transition: all 0.8s cubic-bezier(0.25, 1, 0.5, 1);
+        }
+
+        /* ЭФФЕКТ ВЗРЫВА ПОМИДОРА ИЛИ ПОПАДАНИЯ */
+        .splat-mark {
+            position: absolute;
+            top: 50%; left: 50%;
+            transform: translate(-50%, -50%);
+            font-size: 5rem;
+            pointer-events: none;
+            z-index: 50;
+            animation: splatFade 4s forwards;
+        }
+
+        @keyframes splatFade {
+            0% { transform: translate(-50%, -50%) scale(0.3); opacity: 1; }
+            20% { transform: translate(-50%, -50%) scale(1.3); opacity: 1; }
+            80% { opacity: 0.8; }
+            100% { transform: translate(-50%, -50%) scale(1.5); opacity: 0; }
+        }
 
         /* ИНТЕРАКТИВНЫЙ ЧАТ НА ТВ */
         #tv-chat-container {
@@ -98,28 +125,14 @@
 
         .battle-badge { background: var(--blood-red); color: #fff; font-size: 2.5rem; padding: 6px 30px; border-radius: 8px; margin-bottom: 20px; }
 
-        /* ИГРОВАЯ СЕТКА КРЕСТИКОВ-НОЛИКОВ 3x3 */
         .ttt-grid {
-            display: grid;
-            grid-template-columns: repeat(3, 110px);
-            grid-template-rows: repeat(3, 110px);
-            gap: 15px;
-            margin: 20px 0;
-            background: var(--dirty-yellow);
-            padding: 15px;
-            border-radius: 12px;
-            box-shadow: 0 0 30px rgba(229, 169, 16, 0.5);
+            display: grid; grid-template-columns: repeat(3, 110px); grid-template-rows: repeat(3, 110px);
+            gap: 15px; margin: 20px 0; background: var(--dirty-yellow); padding: 15px; border-radius: 12px;
         }
 
         .ttt-cell {
-            background: #000;
-            border: 2px solid #333;
-            display: flex;
-            align-items: center;
-            justify-content: center;
-            font-size: 4.5rem;
-            color: #fff;
-            text-shadow: 0 0 10px #fff;
+            background: #000; border: 2px solid #333; display: flex; align-items: center;
+            justify-content: center; font-size: 4.5rem; color: #fff;
         }
 
         .battle-status-box { background: #000; border: 2px dashed var(--dirty-yellow); padding: 10px 30px; border-radius: 8px; }
@@ -137,7 +150,6 @@
 
     <div id="tv-chat-container"></div>
 
-    <!-- ВСПЛЫВАЮЩИЙ ИГРОВОЙ ОВЕРЛЕЙ -->
     <div id="battle-overlay">
         <div class="battle-card" id="b-card">
             <div class="battle-badge" id="b-badge">❌⭕ КРЕСТИКИ-НОЛИКИ ❌⭕</div>
@@ -148,7 +160,6 @@
                 <span id="p2-name" style="color:var(--dirty-yellow)">ИГРОК 2 (⭕)</span>
             </div>
 
-            <!-- ИГРОВОЕ ПОЛЕ КРЕСТИКИ-НОЛИКИ -->
             <div class="ttt-grid" id="ttt-grid" style="display: none;">
                 <div class="ttt-cell" id="c0"></div><div class="ttt-cell" id="c1"></div><div class="ttt-cell" id="c2"></div>
                 <div class="ttt-cell" id="c3"></div><div class="ttt-cell" id="c4"></div><div class="ttt-cell" id="c5"></div>
@@ -221,6 +232,51 @@
         updateLeaderboard();
         socket.on('update_board', updateLeaderboard);
 
+        // 🚀 АНИМАЦИЯ ПОЛЕТА РЕАКЦИИ ИЗ ОДНОЙ СТРОЧКИ В ДРУГУЮ
+        socket.on('throw_reaction', (data) => {
+            const targetCard = document.getElementById(`guest-${data.targetId}`);
+            let senderCard = data.senderId ? document.getElementById(`guest-${data.senderId}`) : null;
+
+            // Координаты цели
+            const targetRect = targetCard ? targetCard.getBoundingClientRect() : { left: window.innerWidth / 2, top: 200 };
+
+            // Координаты отправителя (или центр экрана снизу, если отправитель с телефона вне табло)
+            const startX = senderCard ? senderCard.getBoundingClientRect().left + 50 : window.innerWidth / 2;
+            const startY = senderCard ? senderCard.getBoundingClientRect().top + 20 : window.innerHeight - 100;
+
+            const endX = targetRect.left + (targetRect.width / 2);
+            const endY = targetRect.top + (targetRect.height / 2);
+
+            // Создаем летящий элемент
+            const proj = document.createElement('div');
+            proj.className = 'projectile';
+            proj.innerText = data.item;
+            proj.style.left = `${startX}px`;
+            proj.style.top = `${startY}px`;
+            document.body.appendChild(proj);
+
+            // Анимация полета
+            setTimeout(() => {
+                proj.style.left = `${endX}px`;
+                proj.style.top = `${endY}px`;
+                proj.style.transform = 'scale(1.8) rotate(360deg)';
+            }, 50);
+
+            // Прибытие и эффект всплеска
+            setTimeout(() => {
+                proj.remove();
+
+                if (targetCard) {
+                    const splat = document.createElement('div');
+                    splat.className = 'splat-mark';
+                    splat.innerText = data.item === '🍅' ? '💥🍅' : data.item === '💵' ? '💸' : data.item;
+                    targetCard.appendChild(splat);
+
+                    setTimeout(() => splat.remove(), 4000);
+                }
+            }, 850);
+        });
+
         socket.on('tv_chat_message', (data) => {
             const bubble = document.createElement('div');
             bubble.className = 'chat-bubble';
@@ -230,7 +286,7 @@
             setTimeout(() => bubble.remove(), 12000);
         });
 
-        // ❌⭕ СОБЫТИЯ КРЕСТИКОВ-НОЛИКОВ НА ТВ
+        // БАТТЛЫ
         socket.on('ttt_announced', (data) => {
             tttGrid.style.display = "none";
             bBadge.innerText = "❌⭕ ВЫЗОВ В КРЕСТИКИ-НОЛИКИ ❌⭕";
@@ -272,7 +328,6 @@
             });
         }
 
-        // ОБЫЧНЫЕ БАТТЛЫ
         socket.on('battle_announced', (data) => {
             tttGrid.style.display = "none";
             bBadge.innerText = "💣 ВЫЗОВ НА БАТТЛ «БОМБА» 💣";
