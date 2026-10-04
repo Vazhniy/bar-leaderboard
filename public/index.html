@@ -66,11 +66,11 @@
 
         @keyframes neonBreathing { 0% { opacity: 1; } 100% { opacity: 0.92; } }
 
-        .board { width: 100%; max-width: 880px; display: flex; flex-direction: column; gap: 10px; position: relative; }
+        .board { width: 100%; max-width: 900px; display: flex; flex-direction: column; gap: 12px; position: relative; }
 
         .card {
-            background: var(--card-bg); border: 2px solid #2a2a2a; padding: 6px 18px;
-            display: grid; grid-template-columns: 75px 55px 1fr auto; align-items: center; gap: 12px;
+            background: var(--card-bg); border: 2px solid #2a2a2a; padding: 8px 18px;
+            display: grid; grid-template-columns: 70px 75px 1fr auto; align-items: center; gap: 15px;
             box-shadow: 4px 4px 0px rgba(0,0,0,0.8); transition: all 0.3s ease; position: relative;
         }
         .card:nth-child(odd) { transform: rotate(-0.4deg); }
@@ -88,15 +88,22 @@
 
         .rank { font-size: 2.2rem; color: #666; }
 
-        /* СТИЛЬ АВАТАРКИ */
+        /* 🔥 УВЕЛИЧЕННАЯ АВАРАРКА */
         .avatar-box {
-            width: 48px; height: 48px; border-radius: 50%;
-            border: 2px solid var(--dirty-yellow); overflow: hidden;
-            background: #222; display: flex; align-items: center; justify-content: center;
-            box-shadow: 0 0 8px rgba(0,0,0,0.8);
+            width: 68px; 
+            height: 68px; 
+            border-radius: 50%;
+            border: 3px solid var(--dirty-yellow); 
+            overflow: hidden;
+            background: #111; 
+            display: flex; 
+            align-items: center; 
+            justify-content: center;
+            box-shadow: 0 0 12px rgba(255, 183, 0, 0.3), 0 0 5px rgba(0,0,0,0.9);
+            flex-shrink: 0;
         }
         .avatar-img { width: 100%; height: 100%; object-fit: cover; }
-        .avatar-placeholder { font-size: 1.8rem; color: #777; }
+        .avatar-placeholder { font-size: 2.4rem; color: #666; }
 
         .name { font-size: 2.4rem; color: #eee; }
         .battle-stats { font-size: 1.3rem; color: #ffaa00; display: flex; gap: 10px; }
