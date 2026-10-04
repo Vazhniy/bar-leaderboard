@@ -11,17 +11,11 @@
             --bg-color: #0a0808;
             --blood-red: #e61200;
             --dirty-yellow: #e5a910;
-            --fire-orange: #ff5500;
             --text-light: #e0e0e0;
             --card-bg: #151515;
         }
 
-        * { 
-            box-sizing: border-box; 
-            margin: 0; 
-            padding: 0; 
-            font-family: 'VT323', monospace; /* Единый шрифт для всего экрана */
-        }
+        * { box-sizing: border-box; margin: 0; padding: 0; font-family: 'VT323', monospace; }
 
         body {
             background-color: var(--bg-color);
@@ -30,187 +24,64 @@
                 radial-gradient(circle at 10% 80%, rgba(229, 169, 16, 0.08) 0%, transparent 40%);
             color: var(--text-light);
             min-height: 100vh;
-            display: flex;
-            flex-direction: column;
-            align-items: center;
-            padding: 35px 50px 140px 50px;
-            overflow: hidden;
-            position: relative;
+            display: flex; flex-direction: column; align-items: center;
+            padding: 35px 50px 140px 50px; overflow: hidden; position: relative;
         }
 
-        /* Заголовок "НА ДНЕ" и "MINSK SHOT BAR" */
         .header { text-align: center; margin-bottom: 30px; }
         .header h1 {
-            font-size: 8.5rem;
-            color: #ffffff;
-            text-transform: uppercase;
-            letter-spacing: 8px;
-            line-height: 0.85;
-            text-shadow: 
-                0 0 5px #fff,
-                0 0 15px var(--blood-red),
-                0 0 35px var(--blood-red),
-                0 0 70px var(--blood-red);
+            font-size: 8.5rem; color: #ffffff; text-transform: uppercase; letter-spacing: 8px; line-height: 0.85;
+            text-shadow: 0 0 5px #fff, 0 0 15px var(--blood-red), 0 0 35px var(--blood-red);
             animation: neonPulse 3.5s infinite alternate;
         }
         .header .subtitle {
-            font-size: 2.4rem;
-            color: var(--dirty-yellow);
-            letter-spacing: 4px;
-            text-transform: uppercase;
-            background: #000;
-            padding: 4px 22px;
-            border: 2px solid var(--dirty-yellow);
-            display: inline-block;
-            margin-top: 10px;
+            font-size: 2.4rem; color: var(--dirty-yellow); letter-spacing: 4px; text-transform: uppercase;
+            background: #000; padding: 4px 22px; border: 2px solid var(--dirty-yellow); display: inline-block; margin-top: 10px;
         }
 
-        @keyframes neonPulse {
-            0%, 100% { opacity: 1; }
-            50% { opacity: 0.88; }
-        }
+        @keyframes neonPulse { 0%, 100% { opacity: 1; } 50% { opacity: 0.88; } }
 
         .board { width: 100%; max-width: 1000px; display: flex; flex-direction: column; gap: 18px; }
 
         .card {
-            background: var(--card-bg); 
-            border: 3px solid #333; 
-            padding: 12px 25px;
-            display: grid; 
-            grid-template-columns: 110px 1fr auto; 
-            align-items: center;
-            box-shadow: 8px 8px 0px rgba(0,0,0,0.8); 
-            position: relative; 
-            transition: all 0.3s ease;
+            background: var(--card-bg); border: 3px solid #333; padding: 12px 25px;
+            display: grid; grid-template-columns: 110px 1fr auto; align-items: center;
+            box-shadow: 8px 8px 0px rgba(0,0,0,0.8); transition: all 0.3s ease;
         }
         .card:nth-child(odd) { transform: rotate(-0.6deg); }
         .card:nth-child(even) { transform: rotate(0.6deg); }
 
-        /* 🔥 ЭФФЕКТ ОГНЯ ДЛЯ 1-ГО МЕСТА */
         .card.rank-1 { 
             border-color: #ffaa00; 
             background: linear-gradient(135deg, #3a1200 0%, #1a0800 50%, #0d0d0d 100%);
-            animation: fireGlow 1.2s infinite alternate ease-in-out, cardShake 3s infinite ease-in-out;
-            position: relative;
-            z-index: 10;
+            animation: fireGlow 1.2s infinite alternate ease-in-out;
         }
-
-        .card.rank-1 .rank { 
-            color: #ffcc00; 
-            text-shadow: 0 0 10px #ff5500, 0 0 20px #ff1100, 2px 2px 0 #000;
-        }
-
-        .card.rank-1 .name {
-            color: #fff;
-            text-shadow: 0 0 10px #ffaa00, 2px 2px 0 #000;
-        }
-
-        .card.rank-1 .score {
-            color: #ffaa00;
-            text-shadow: 0 0 15px #ff5500;
-        }
-
         @keyframes fireGlow {
-            0% {
-                box-shadow: 
-                    0 0 15px rgba(255, 85, 0, 0.8),
-                    0 0 30px rgba(255, 170, 0, 0.5),
-                    inset 0 0 15px rgba(255, 68, 0, 0.4),
-                    8px 8px 0px #000;
-                border-color: #ff3300;
-            }
-            50% {
-                box-shadow: 
-                    0 0 25px rgba(255, 170, 0, 1),
-                    0 0 50px rgba(255, 34, 0, 0.8),
-                    inset 0 0 25px rgba(255, 136, 0, 0.6),
-                    8px 8px 0px #000;
-                border-color: #ffaa00;
-            }
-            100% {
-                box-shadow: 
-                    0 0 20px rgba(255, 34, 0, 0.9),
-                    0 0 40px rgba(255, 102, 0, 0.7),
-                    inset 0 0 20px rgba(255, 51, 0, 0.5),
-                    8px 8px 0px #000;
-                border-color: #ffee00;
-            }
+            0% { box-shadow: 0 0 15px rgba(255, 85, 0, 0.8); border-color: #ff3300; }
+            100% { box-shadow: 0 0 25px rgba(255, 170, 0, 1); border-color: #ffaa00; }
         }
 
-        @keyframes cardShake {
-            0%, 100% { transform: rotate(-0.5deg) translateY(0); }
-            50% { transform: rotate(0.5deg) translateY(-2px); }
-        }
-
-        .rank { font-size: 3.2rem; color: #666; letter-spacing: 2px; }
-        .name-container { display: flex; flex-direction: column; justify-content: center; }
-        .name { font-size: 3.2rem; color: #eee; letter-spacing: 2px; line-height: 1; }
-        
-        .battle-stats {
-            font-size: 1.6rem; 
-            color: #ffaa00; 
-            display: flex; 
-            gap: 15px; 
-            margin-top: 2px;
-            letter-spacing: 1px;
-        }
-
+        .rank { font-size: 3.2rem; color: #666; }
+        .name { font-size: 3.2rem; color: #eee; }
+        .battle-stats { font-size: 1.6rem; color: #ffaa00; display: flex; gap: 15px; }
         .score-box { text-align: right; background: #000; padding: 6px 18px; border: 2px dashed #444; }
-        .score { font-size: 3.8rem; color: var(--blood-red); line-height: 1; }
-        .unit { font-size: 1.6rem; color: #777; margin-left: 5px; }
+        .score { font-size: 3.8rem; color: var(--blood-red); }
+        .unit { font-size: 1.6rem; color: #777; }
 
-        /* ИНТЕРАКТИВНЫЙ БАРНЫЙ ЧАТ */
+        /* ИНТЕРАКТИВНЫЙ ЧАТ НА ТВ */
         #tv-chat-container {
-            position: fixed;
-            bottom: 25px;
-            left: 50%;
-            transform: translateX(-50%);
-            width: 90%;
-            max-width: 900px;
-            display: flex;
-            flex-direction: column;
-            gap: 12px;
-            pointer-events: none;
-            z-index: 8000;
+            position: fixed; bottom: 25px; left: 50%; transform: translateX(-50%);
+            width: 90%; max-width: 900px; display: flex; flex-direction: column; gap: 12px; pointer-events: none; z-index: 8000;
         }
-
         .chat-bubble {
-            background: rgba(18, 12, 12, 0.95);
-            border: 2px solid var(--dirty-yellow);
-            box-shadow: 0 0 25px rgba(229, 169, 16, 0.4), 5px 5px 0 #000;
-            border-radius: 12px;
-            padding: 12px 25px;
-            display: flex;
-            align-items: center;
-            gap: 15px;
-            animation: bubblePop 0.5s cubic-bezier(0.175, 0.885, 0.32, 1.275);
-            transition: all 0.5s ease;
+            background: rgba(18, 12, 12, 0.95); border: 2px solid var(--dirty-yellow);
+            box-shadow: 0 0 25px rgba(229, 169, 16, 0.4); border-radius: 12px; padding: 12px 25px;
+            display: flex; align-items: center; gap: 15px;
         }
+        .chat-sender { font-size: 2.2rem; color: var(--dirty-yellow); background: #000; padding: 2px 14px; }
+        .chat-text { font-size: 2.4rem; color: #fff; }
 
-        @keyframes bubblePop {
-            0% { transform: translateY(40px) scale(0.8); opacity: 0; }
-            100% { transform: translateY(0) scale(1); opacity: 1; }
-        }
-
-        .chat-sender {
-            font-size: 2.2rem;
-            color: var(--dirty-yellow);
-            background: #000;
-            padding: 2px 14px;
-            border-radius: 6px;
-            border: 1px solid #444;
-            white-space: nowrap;
-        }
-
-        .chat-text {
-            font-size: 2.4rem;
-            color: #fff;
-            text-shadow: 2px 2px 0 #000;
-            word-break: break-word;
-            letter-spacing: 1px;
-        }
-
-        /* ОВЕРЛЕЙ БАТТЛА В СТИЛЕ VT323 */
+        /* ОВЕРЛЕЙ ДУЭЛИ И КРЕСТИКОВ-НОЛИКОВ */
         #battle-overlay {
             position: fixed; top: 0; left: 0; width: 100vw; height: 100vh;
             background: rgba(5, 2, 2, 0.94); backdrop-filter: blur(8px);
@@ -225,22 +96,34 @@
             display: flex; flex-direction: column; align-items: center;
         }
 
-        .battle-badge {
-            background: var(--blood-red); color: #fff; font-size: 2.5rem;
-            padding: 6px 30px; border-radius: 8px; margin-bottom: 25px; letter-spacing: 2px;
+        .battle-badge { background: var(--blood-red); color: #fff; font-size: 2.5rem; padding: 6px 30px; border-radius: 8px; margin-bottom: 20px; }
+
+        /* ИГРОВАЯ СЕТКА КРЕСТИКОВ-НОЛИКОВ 3x3 */
+        .ttt-grid {
+            display: grid;
+            grid-template-columns: repeat(3, 110px);
+            grid-template-rows: repeat(3, 110px);
+            gap: 15px;
+            margin: 20px 0;
+            background: var(--dirty-yellow);
+            padding: 15px;
+            border-radius: 12px;
+            box-shadow: 0 0 30px rgba(229, 169, 16, 0.5);
         }
 
-        .versus-container { display: flex; align-items: center; justify-content: center; gap: 25px; width: 100%; margin: 20px 0 30px 0; }
-        .player-box { background: #1a1a1a; border: 2px solid #333; border-radius: 10px; padding: 15px 25px; flex: 1; max-width: 350px; }
-        .player-name { font-size: 3.5rem; color: #fff; letter-spacing: 2px; }
-        .vs-circle { background: var(--dirty-yellow); color: #000; font-size: 3rem; width: 75px; height: 75px; border-radius: 50%; display: flex; align-items: center; justify-content: center; flex-shrink: 0; }
-        
-        .battle-status-box { background: #000; border: 2px dashed var(--dirty-yellow); padding: 10px 30px; border-radius: 8px; }
-        .battle-status-text { font-size: 2.6rem; color: var(--dirty-yellow); letter-spacing: 2px; }
+        .ttt-cell {
+            background: #000;
+            border: 2px solid #333;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            font-size: 4.5rem;
+            color: #fff;
+            text-shadow: 0 0 10px #fff;
+        }
 
-        .winner-card { border-color: var(--dirty-yellow) !important; box-shadow: 0 0 60px rgba(229, 169, 16, 0.7) !important; }
-        .winner-badge { background: var(--dirty-yellow) !important; color: #000 !important; }
-        .winner-name-single { font-size: 5.5rem; color: var(--dirty-yellow); text-shadow: 0 0 25px var(--dirty-yellow); margin: 15px 0; letter-spacing: 3px; }
+        .battle-status-box { background: #000; border: 2px dashed var(--dirty-yellow); padding: 10px 30px; border-radius: 8px; }
+        .battle-status-text { font-size: 2.6rem; color: var(--dirty-yellow); }
     </style>
 </head>
 <body>
@@ -254,20 +137,26 @@
 
     <div id="tv-chat-container"></div>
 
+    <!-- ВСПЛЫВАЮЩИЙ ИГРОВОЙ ОВЕРЛЕЙ -->
     <div id="battle-overlay">
         <div class="battle-card" id="b-card">
-            <div class="battle-badge" id="b-badge">💣 ВЫЗОВ НА БАТТЛ «БОМБА» 💣</div>
+            <div class="battle-badge" id="b-badge">❌⭕ КРЕСТИКИ-НОЛИКИ ❌⭕</div>
             
-            <div class="versus-container" id="b-vs-box">
-                <div class="player-box"><div class="player-name" id="p1-name">ИГРОК 1</div></div>
-                <div class="vs-circle">VS</div>
-                <div class="player-box"><div class="player-name" id="p2-name">ИГРОК 2</div></div>
+            <div id="b-vs-box" style="display:flex; gap:20px; font-size:3rem; margin-bottom:15px;">
+                <span id="p1-name" style="color:var(--blood-red)">ИГРОК 1 (❌)</span>
+                <span>VS</span>
+                <span id="p2-name" style="color:var(--dirty-yellow)">ИГРОК 2 (⭕)</span>
             </div>
 
-            <div class="winner-name-single" id="winner-single" style="display: none;"></div>
+            <!-- ИГРОВОЕ ПОЛЕ КРЕСТИКИ-НОЛИКИ -->
+            <div class="ttt-grid" id="ttt-grid" style="display: none;">
+                <div class="ttt-cell" id="c0"></div><div class="ttt-cell" id="c1"></div><div class="ttt-cell" id="c2"></div>
+                <div class="ttt-cell" id="c3"></div><div class="ttt-cell" id="c4"></div><div class="ttt-cell" id="c5"></div>
+                <div class="ttt-cell" id="c6"></div><div class="ttt-cell" id="c7"></div><div class="ttt-cell" id="c8"></div>
+            </div>
 
             <div class="battle-status-box">
-                <div class="battle-status-text" id="b-status">ОЖИДАНИЕ ПОДТВЕРЖДЕНИЯ В TELEGRAM...</div>
+                <div class="battle-status-text" id="b-status">ЖДЕМ ХОДА...</div>
             </div>
         </div>
     </div>
@@ -278,10 +167,9 @@
         const overlay = document.getElementById('battle-overlay');
         const bCard = document.getElementById('b-card');
         const bBadge = document.getElementById('b-badge');
-        const bVsBox = document.getElementById('b-vs-box');
         const p1Name = document.getElementById('p1-name');
         const p2Name = document.getElementById('p2-name');
-        const winnerSingle = document.getElementById('winner-single');
+        const tttGrid = document.getElementById('ttt-grid');
         const bStatus = document.getElementById('b-status');
         const chatContainer = document.getElementById('tv-chat-container');
 
@@ -296,8 +184,8 @@
 
                     const bombsCount = guest.bombs || 0;
                     const winsCount = guest.wins || 0;
-                    const battleBadge = bombsCount > 0 
-                        ? `💣 ${bombsCount} ${winsCount > 0 ? `| 👑 ${winsCount} ПОБЕД` : ''}`
+                    const battleBadge = (bombsCount > 0 || winsCount > 0)
+                        ? `💣 ${bombsCount} | 👑 ${winsCount} ПОБЕД`
                         : '';
 
                     const rankDisplay = rank === 1 ? '🔥 #1' : `#${rank}`;
@@ -336,56 +224,69 @@
         socket.on('tv_chat_message', (data) => {
             const bubble = document.createElement('div');
             bubble.className = 'chat-bubble';
-            bubble.innerHTML = `
-                <div class="chat-sender">💬 ${data.sender}:</div>
-                <div class="chat-text">${data.text}</div>
-            `;
-            
+            bubble.innerHTML = `<div class="chat-sender">💬 ${data.sender}:</div><div class="chat-text">${data.text}</div>`;
             chatContainer.appendChild(bubble);
-
-            if (chatContainer.children.length > 3) {
-                chatContainer.removeChild(chatContainer.children[0]);
-            }
-
-            setTimeout(() => {
-                bubble.style.opacity = '0';
-                bubble.style.transform = 'translateY(-20px)';
-                setTimeout(() => bubble.remove(), 500);
-            }, 12000);
+            if (chatContainer.children.length > 3) chatContainer.removeChild(chatContainer.children[0]);
+            setTimeout(() => bubble.remove(), 12000);
         });
 
+        // ❌⭕ СОБЫТИЯ КРЕСТИКОВ-НОЛИКОВ НА ТВ
+        socket.on('ttt_announced', (data) => {
+            tttGrid.style.display = "none";
+            bBadge.innerText = "❌⭕ ВЫЗОВ В КРЕСТИКИ-НОЛИКИ ❌⭕";
+            p1Name.innerText = `${data.challengerName} (❌)`;
+            p2Name.innerText = `${data.targetName} (⭕)`;
+            bStatus.innerText = "ЖДЁМ ПОДТВЕРЖДЕНИЯ В TELEGRAM...";
+            overlay.style.display = 'flex';
+        });
+
+        socket.on('ttt_started', (game) => {
+            tttGrid.style.display = "grid";
+            bBadge.innerText = "⚔️ ИГРА В РАЗГАРЕ! ⚔️";
+            p1Name.innerText = `${game.playerX.name} (❌)`;
+            p2Name.innerText = `${game.playerO.name} (⭕)`;
+            updateTTTBoard(game.board);
+            bStatus.innerText = `ХОДИТ: ${game.playerX.name} (❌)`;
+        });
+
+        socket.on('ttt_update', (game) => {
+            updateTTTBoard(game.board);
+            const currentName = game.turn === 'X' ? game.playerX.name : game.playerO.name;
+            const currentSymbol = game.turn === 'X' ? '❌' : '⭕';
+            bStatus.innerText = `ХОДИТ: ${currentName} (${currentSymbol})`;
+        });
+
+        socket.on('ttt_ended', (data) => {
+            if (data.draw) {
+                bStatus.innerText = "🤝 НИЧЬЯ В КРЕСТИКАХ-НОЛИКАХ!";
+            } else {
+                bStatus.innerText = `👑 ПОБЕДИТЕЛЬ: ${data.winnerName}! (+1 ПОБЕДА)`;
+            }
+            setTimeout(() => { overlay.style.display = 'none'; }, 6000);
+        });
+
+        function updateTTTBoard(boardArray) {
+            boardArray.forEach((val, i) => {
+                const cell = document.getElementById(`c${i}`);
+                cell.innerText = val === 'X' ? '❌' : val === 'O' ? '⭕' : '';
+            });
+        }
+
+        // ОБЫЧНЫЕ БАТТЛЫ
         socket.on('battle_announced', (data) => {
-            bCard.className = "battle-card";
-            bBadge.className = "battle-badge";
+            tttGrid.style.display = "none";
             bBadge.innerText = "💣 ВЫЗОВ НА БАТТЛ «БОМБА» 💣";
-            bVsBox.style.display = "flex";
-            winnerSingle.style.display = "none";
             p1Name.innerText = data.challengerName;
             p2Name.innerText = data.targetName;
             bStatus.innerText = "ЖДЁМ ПОДТВЕРЖДЕНИЯ В TELEGRAM...";
             overlay.style.display = 'flex';
         });
 
-        socket.on('battle_accepted', (data) => {
-            bBadge.innerText = "🔥 БАТТЛ ПРИНЯТ! 🔥";
-            bStatus.innerText = "БАРМЕН, ГОТОВЬ БОМБЫ! ВСЕ К СТОЙКЕ!";
-        });
-
-        socket.on('battle_declined', (data) => {
-            bBadge.innerText = "🐔 ВЫЗОВ ОТКЛОНЁН 🐔";
-            bStatus.innerText = `${data.targetName} зассал(а) принимать вызов!`;
-            setTimeout(() => { overlay.style.display = 'none'; }, 4000);
-        });
-
+        socket.on('battle_accepted', () => { bStatus.innerText = "БАРМЕН, ГОТОВЬ БОМБЫ! ВСЕ К СТОЙКЕ!"; });
+        socket.on('battle_declined', () => { bStatus.innerText = "ВЫЗОВ ОТКЛОНЁН!"; setTimeout(() => overlay.style.display = 'none', 3000); });
         socket.on('battle_winner_announcement', (data) => {
-            bCard.className = "battle-card winner-card";
-            bBadge.className = "battle-badge winner-badge";
-            bBadge.innerText = "👑 ПОБЕДИТЕЛЬ БАТТЛА 👑";
-            bVsBox.style.display = "none";
-            winnerSingle.style.display = "block";
-            winnerSingle.innerText = data.winnerName;
-            bStatus.innerText = "💣 +1 БОМБА И 👑 ПОБЕДА ЗАЧИСЛЕНЫ!";
-            setTimeout(() => { overlay.style.display = 'none'; }, 7000);
+            bStatus.innerText = `👑 ПОБЕДИТЕЛЬ: ${data.winnerName}!`;
+            setTimeout(() => overlay.style.display = 'none', 6000);
         });
     </script>
 </body>
