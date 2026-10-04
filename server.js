@@ -19,9 +19,14 @@ const BOT_USERNAME = process.env.BOT_USERNAME;
 
 if (!BOT_TOKEN) console.error("ОШИБКА: BOT_TOKEN не задан!");
 
+// Подключение базы данных с защитой от блокировок
 const db = new sqlite3.Database('./database.sqlite');
 
 db.serialize(() => {
+    // Включаем WAL-режим и таймаут ожидания записи (защита от SQLITE_BUSY)
+    db.run("PRAGMA journal_mode = WAL;");
+    db.run("PRAGMA busy_timeout = 5000;");
+
     db.run(`CREATE TABLE IF NOT EXISTS guests (
         id INTEGER PRIMARY KEY AUTOINCREMENT,
         telegram_id TEXT UNIQUE,
@@ -36,8 +41,14 @@ db.serialize(() => {
 });
 
 const bot = new TelegramBot(BOT_TOKEN, { polling: true });
+
+// Предотвращение падения бота при сетевых ошибках Telegram API
+bot.on('polling_error', (error) => {
+    console.error(`[Telegram Polling Error] ${error.code || error.message}`);
+});
+
 const userStates = {};
-let activeBattle = null;
+const activeBattles = {}; // Очередь независимых дуэлей
 let activeTicTacToe = null;
 
 const mainMenuKeyboard = {
@@ -65,6 +76,7 @@ bot.onText(/\/start|\/scan/, (msg) => {
 
 function handleScan(chatId, tgId, defaultName) {
     db.get(`SELECT * FROM guests WHERE telegram_id = ?`, [tgId], (err, guest) => {
+        if (err) return console.error(err);
         if (!guest) {
             userStates[chatId] = { action: 'ENTER_NAME', tgId, defaultName };
             bot.sendMessage(chatId, `🍹 *Добро пожаловать в бар НА ДНЕ!*\nКак тебя подписать на ТВ?`, {
@@ -73,7 +85,8 @@ function handleScan(chatId, tgId, defaultName) {
                 }
             });
         } else {
-            db.run(`UPDATE guests SET count = count + 1 WHERE id = ?`, [guest.id], () => {
+            db.run(`UPDATE guests SET count = count + 1 WHERE id = ?`, [guest.id], (err) => {
+                if (err) return console.error(err);
                 io.emit('update_board');
                 bot.sendMessage(chatId, `🔥 *+1 ШОТ ЗАЧИСЛЕН!* Выпито: *${guest.count + 1}* шотов.`, mainMenuKeyboard);
             });
@@ -134,8 +147,8 @@ bot.on('message', (msg) => {
 });
 
 function sendReactionTargetList(chatId, tgId) {
-    db.all(`SELECT id, name FROM guests WHERE count > 0 OR bombs > 0`, [], (err, rows) => {
-        if (!rows || rows.length === 0) {
+    db.all(`SELECT id, name FROM guests WHERE count > 0 OR bombs > 0 LIMIT 20`, [], (err, rows) => {
+        if (err || !rows || rows.length === 0) {
             bot.sendMessage(chatId, "⚠️ В баре пока никого нет!", mainMenuKeyboard);
         } else {
             const buttons = rows.map(r => [{
@@ -158,7 +171,7 @@ function sendUserProfile(chatId, tgId) {
 }
 
 function sendGuestsList(chatId) {
-    db.all(`SELECT name, count, bombs FROM guests WHERE count > 0 OR bombs > 0 ORDER BY count DESC`, [], (err, rows) => {
+    db.all(`SELECT name, count, bombs FROM guests WHERE count > 0 OR bombs > 0 ORDER BY count DESC LIMIT 15`, [], (err, rows) => {
         let text = "🔥 *СЕЙЧАС В БАРЕ:*\n\n";
         (rows || []).forEach((r, i) => text += `${i + 1}. *${r.name}* — ${r.count} шотов | 💣 ${r.bombs}\n`);
         bot.sendMessage(chatId, text || "В баре пока тихо.", mainMenuKeyboard);
@@ -174,7 +187,7 @@ function sendLeaderboardList(chatId) {
 }
 
 function showOpponentsList(chatId, tgId, type) {
-    db.all(`SELECT id, name, telegram_id FROM guests WHERE (count > 0 OR bombs > 0) AND telegram_id != ?`, [tgId], (err, rows) => {
+    db.all(`SELECT id, name, telegram_id FROM guests WHERE (count > 0 OR bombs > 0) AND telegram_id != ? LIMIT 15`, [tgId], (err, rows) => {
         if (!rows || rows.length === 0) {
             bot.sendMessage(chatId, "⚠️ Нет доступных соперников!");
         } else {
@@ -189,7 +202,6 @@ function showOpponentsList(chatId, tgId, type) {
     });
 }
 
-// Inline Кнопки
 bot.on('callback_query', (query) => {
     const chatId = query.message.chat.id;
     const tgId = query.from.id.toString();
@@ -198,11 +210,10 @@ bot.on('callback_query', (query) => {
     const state = userStates[chatId];
     if (data === 'use_default_name' && state) {
         registerNewGuest(chatId, state.tgId, state.defaultName);
-        bot.answerCallbackQuery(query.id);
+        bot.answerCallbackQuery(query.id).catch(() => {});
         return;
     }
 
-    // Выбор снаряда для броска
     if (data.startsWith('react_target_')) {
         const parts = data.split('_');
         const targetId = parts[2];
@@ -223,11 +234,10 @@ bot.on('callback_query', (query) => {
                 ]
             }
         });
-        bot.answerCallbackQuery(query.id);
+        bot.answerCallbackQuery(query.id).catch(() => {});
         return;
     }
 
-    // Запуск броска снаряда
     if (data.startsWith('throw_')) {
         const parts = data.split('_');
         const item = parts[1];
@@ -237,51 +247,45 @@ bot.on('callback_query', (query) => {
             const senderId = sender ? sender.id : null;
             const senderName = sender ? sender.name : 'Аноним';
 
-            // Отправляем анимированный бросок на ТВ
-            io.emit('throw_reaction', {
-                item,
-                senderId,
-                senderName,
-                targetId
-            });
-
+            io.emit('throw_reaction', { item, senderId, senderName, targetId });
             bot.sendMessage(chatId, `🎯 *${item} полетел в цель! Смотри на экран ТВ!*`, mainMenuKeyboard);
         });
-        bot.answerCallbackQuery(query.id);
+        bot.answerCallbackQuery(query.id).catch(() => {});
         return;
     }
 
-    if (data === 'select_battle_type_bomb') { showOpponentsList(chatId, tgId, 'bomb'); bot.answerCallbackQuery(query.id); return; }
-    if (data === 'select_battle_type_ttt') { showOpponentsList(chatId, tgId, 'ttt'); bot.answerCallbackQuery(query.id); return; }
+    if (data === 'select_battle_type_bomb') { showOpponentsList(chatId, tgId, 'bomb'); bot.answerCallbackQuery(query.id).catch(() => {}); return; }
+    if (data === 'select_battle_type_ttt') { showOpponentsList(chatId, tgId, 'ttt'); bot.answerCallbackQuery(query.id).catch(() => {}); return; }
 
     if (data.startsWith('challenge_')) {
         const parts = data.split('_');
         const type = parts[1];
         const targetTgId = parts[2];
         const targetName = parts[3];
+        const battleId = `b_${Date.now()}`;
 
         db.get(`SELECT name FROM guests WHERE telegram_id = ?`, [tgId], (err, challenger) => {
             const challengerName = challenger ? challenger.name : 'Аноним';
 
+            activeBattles[battleId] = { battleId, type, challengerTgId: tgId, challengerName, targetTgId, targetName };
+
             if (type === 'bomb') {
-                activeBattle = { type: 'bomb', challengerTgId: tgId, challengerName, targetTgId, targetName };
-                io.emit('battle_announced', activeBattle);
+                io.emit('battle_announced', activeBattles[battleId]);
                 bot.sendMessage(targetTgId, `🚨 *ВНИМАНИЕ!* Гость *${challengerName}* вызывает тебя на *БОМБУ НА СКОРОСТЬ*! 💣`, {
                     reply_markup: {
                         inline_keyboard: [
-                            [{ text: "🔥 ПРИНЯТЬ ВЫЗОВ ⚔️", callback_data: `accept_bomb` }],
-                            [{ text: "🐓 Зассал / Отмена", callback_data: `decline_battle` }]
+                            [{ text: "🔥 ПРИНЯТЬ ВЫЗОВ ⚔️", callback_data: `accept_bomb_${battleId}` }],
+                            [{ text: "🐓 Зассал / Отмена", callback_data: `decline_battle_${battleId}` }]
                         ]
                     }
                 });
             } else if (type === 'ttt') {
-                activeBattle = { type: 'ttt', challengerTgId: tgId, challengerName, targetTgId, targetName };
-                io.emit('ttt_announced', activeBattle);
+                io.emit('ttt_announced', activeBattles[battleId]);
                 bot.sendMessage(targetTgId, `🚨 *ВНИМАНИЕ!* Гость *${challengerName}* вызывает тебя в *КРЕСТИКИ-НОЛИКИ* ❌⭕!`, {
                     reply_markup: {
                         inline_keyboard: [
-                            [{ text: "⚔️ ПРИНЯТЬ БОЙ ❌⭕", callback_data: `accept_ttt` }],
-                            [{ text: "🐓 Зассал / Отмена", callback_data: `decline_battle` }]
+                            [{ text: "⚔️ ПРИНЯТЬ БОЙ ❌⭕", callback_data: `accept_ttt_${battleId}` }],
+                            [{ text: "🐓 Зассал / Отмена", callback_data: `decline_battle_${battleId}` }]
                         ]
                     }
                 });
@@ -289,23 +293,28 @@ bot.on('callback_query', (query) => {
 
             bot.sendMessage(chatId, `💣 Вызов брошен игроку *${targetName}*! Смотри на ТВ!`);
         });
-        bot.answerCallbackQuery(query.id);
+        bot.answerCallbackQuery(query.id).catch(() => {});
     }
 
-    if (data === 'accept_bomb') {
-        if (activeBattle) {
-            io.emit('battle_accepted', activeBattle);
-            bot.sendMessage(activeBattle.challengerTgId, `🎉 *${activeBattle.targetName} ПРИНЯЛ ТВОЙ ВЫЗОВ!* Бегом к стойке!`);
+    if (data.startsWith('accept_bomb_')) {
+        const battleId = data.replace('accept_bomb_', '');
+        const battle = activeBattles[battleId];
+        if (battle) {
+            io.emit('battle_accepted', battle);
+            bot.sendMessage(battle.challengerTgId, `🎉 *${battle.targetName} ПРИНЯЛ ТВОЙ ВЫЗОВ!* Бегом к стойке!`);
             bot.sendMessage(chatId, `🔥 *ТЫ ПРИНЯЛ ВЫЗОВ!* Марш к стойке!`);
         }
-        bot.answerCallbackQuery(query.id);
+        bot.answerCallbackQuery(query.id).catch(() => {});
     }
 
-    if (data === 'accept_ttt') {
-        if (activeBattle && activeBattle.type === 'ttt') {
+    if (data.startsWith('accept_ttt_')) {
+        const battleId = data.replace('accept_ttt_', '');
+        const battle = activeBattles[battleId];
+        if (battle) {
             activeTicTacToe = {
-                playerX: { tgId: activeBattle.challengerTgId, name: activeBattle.challengerName },
-                playerO: { tgId: activeBattle.targetTgId, name: activeBattle.targetName },
+                battleId,
+                playerX: { tgId: battle.challengerTgId, name: battle.challengerName },
+                playerO: { tgId: battle.targetTgId, name: battle.targetName },
                 board: Array(9).fill(" "),
                 turn: 'X'
             };
@@ -313,31 +322,33 @@ bot.on('callback_query', (query) => {
             sendTicTacToeBoard(activeTicTacToe.playerX.tgId);
             sendTicTacToeBoard(activeTicTacToe.playerO.tgId);
         }
-        bot.answerCallbackQuery(query.id);
+        bot.answerCallbackQuery(query.id).catch(() => {});
     }
 
-    if (data === 'decline_battle') {
-        if (activeBattle) {
-            io.emit('battle_declined', activeBattle);
-            bot.sendMessage(activeBattle.challengerTgId, `🐔 *${activeBattle.targetName} слился с баттла...*`);
+    if (data.startsWith('decline_battle_')) {
+        const battleId = data.replace('decline_battle_', '');
+        const battle = activeBattles[battleId];
+        if (battle) {
+            io.emit('battle_declined', battle);
+            bot.sendMessage(battle.challengerTgId, `🐔 *${battle.targetName} слился с баттла...*`);
             bot.sendMessage(chatId, `🚫 Вызов отклонен.`);
-            activeBattle = null;
+            delete activeBattles[battleId];
         }
-        bot.answerCallbackQuery(query.id);
+        bot.answerCallbackQuery(query.id).catch(() => {});
     }
 
     if (data.startsWith('ttt_move_')) {
         const cellIndex = parseInt(data.replace('ttt_move_', ''));
-        if (!activeTicTacToe) return bot.answerCallbackQuery(query.id, { text: "Игра завершена." });
+        if (!activeTicTacToe) return bot.answerCallbackQuery(query.id, { text: "Игра завершена." }).catch(() => {});
 
         const currentTurnTgId = activeTicTacToe.turn === 'X' ? activeTicTacToe.playerX.tgId : activeTicTacToe.playerO.tgId;
 
         if (tgId !== currentTurnTgId) {
-            return bot.answerCallbackQuery(query.id, { text: "⏳ Сейчас ход соперника!", show_alert: true });
+            return bot.answerCallbackQuery(query.id, { text: "⏳ Сейчас ход соперника!", show_alert: true }).catch(() => {});
         }
 
         if (activeTicTacToe.board[cellIndex] !== " ") {
-            return bot.answerCallbackQuery(query.id, { text: "⚠️ Клетка уже занята!" });
+            return bot.answerCallbackQuery(query.id, { text: "⚠️ Клетка уже занята!" }).catch(() => {});
         }
 
         activeTicTacToe.board[cellIndex] = activeTicTacToe.turn;
@@ -355,7 +366,7 @@ bot.on('callback_query', (query) => {
             sendTicTacToeBoard(activeTicTacToe.playerO.tgId);
         }
 
-        bot.answerCallbackQuery(query.id);
+        bot.answerCallbackQuery(query.id).catch(() => {});
     }
 });
 
@@ -385,15 +396,11 @@ function sendTicTacToeBoard(targetTgId) {
     bot.sendMessage(targetTgId, `❌⭕ *КРЕСТИКИ-НОЛИКИ*\n${activeTicTacToe.playerX.name} (❌) vs ${activeTicTacToe.playerO.name} (⭕)\n\n${statusText}`, {
         parse_mode: 'Markdown',
         reply_markup: { inline_keyboard: keyboard }
-    });
+    }).catch(() => {});
 }
 
 function checkTicTacToeWinner(b) {
-    const lines = [
-        [0,1,2], [3,4,5], [6,7,8],
-        [0,3,6], [1,4,7], [2,5,8],
-        [0,4,8], [2,4,6]
-    ];
+    const lines = [[0,1,2],[3,4,5],[6,7,8],[0,3,6],[1,4,7],[2,5,8],[0,4,8],[2,4,6]];
     for (let l of lines) {
         if (b[l[0]] !== " " && b[l[0]] === b[l[1]] && b[l[1]] === b[l[2]]) return b[l[0]];
     }
@@ -403,8 +410,8 @@ function checkTicTacToeWinner(b) {
 function handleTicTacToeEnd(result) {
     if (result === 'DRAW') {
         io.emit('ttt_ended', { draw: true });
-        bot.sendMessage(activeTicTacToe.playerX.tgId, "🤝 *НИЧЬЯ В КРЕСТИКАХ-НОЛИКАХ!*");
-        bot.sendMessage(activeTicTacToe.playerO.tgId, "🤝 *НИЧЬЯ В КРЕСТИКАХ-НОЛИКАХ!*");
+        bot.sendMessage(activeTicTacToe.playerX.tgId, "🤝 *НИЧЬЯ В КРЕСТИКАХ-НОЛИКАХ!*").catch(() => {});
+        bot.sendMessage(activeTicTacToe.playerO.tgId, "🤝 *НИЧЬЯ В КРЕСТИКАХ-НОЛИКАХ!*").catch(() => {});
     } else {
         const winnerObj = result === 'X' ? activeTicTacToe.playerX : activeTicTacToe.playerO;
         const loserObj = result === 'X' ? activeTicTacToe.playerO : activeTicTacToe.playerX;
@@ -412,13 +419,15 @@ function handleTicTacToeEnd(result) {
         db.run(`UPDATE guests SET wins = wins + 1 WHERE telegram_id = ?`, [winnerObj.tgId], () => {
             io.emit('update_board');
             io.emit('ttt_ended', { winnerName: winnerObj.name, draw: false });
-            bot.sendMessage(winnerObj.tgId, `🏆 *ПОБЕДА В КРЕСТИКАХ-НОЛИКАХ!* Тебе зачислена 👑 +1 Победа!`);
-            bot.sendMessage(loserObj.tgId, `😢 *ПОРАЖЕНИЕ В КРЕСТИКАХ-НОЛИКАХ!* Победу одержал ${winnerObj.name}`);
+            bot.sendMessage(winnerObj.tgId, `🏆 *ПОБЕДА В КРЕСТИКАХ-НОЛИКАХ!* Тебе зачислена 👑 +1 Победа!`).catch(() => {});
+            bot.sendMessage(loserObj.tgId, `😢 *ПОРАЖЕНИЕ В КРЕСТИКАХ-НОЛИКАХ!* Победу одержал ${winnerObj.name}`).catch(() => {});
         });
     }
 
+    if (activeTicTacToe && activeTicTacToe.battleId) {
+        delete activeBattles[activeTicTacToe.battleId];
+    }
     activeTicTacToe = null;
-    activeBattle = null;
 }
 
 function registerNewGuest(chatId, tgId, name) {
@@ -430,8 +439,9 @@ function registerNewGuest(chatId, tgId, name) {
 }
 
 app.get('/api/leaderboard', (req, res) => {
-    db.all(`SELECT id, name, count, bombs, wins FROM guests WHERE count > 0 OR bombs > 0 ORDER BY count DESC, wins DESC`, [], (err, rows) => {
-        res.json(rows);
+    db.all(`SELECT id, name, count, bombs, wins FROM guests WHERE count > 0 OR bombs > 0 ORDER BY count DESC, wins DESC LIMIT 30`, [], (err, rows) => {
+        if (err) res.status(500).json([]);
+        else res.json(rows || []);
     });
 });
 
@@ -442,9 +452,8 @@ app.post('/api/battle-winner', (req, res) => {
             db.run(`UPDATE guests SET bombs = bombs + 1 WHERE telegram_id = ?`, [loserTgId], () => {
                 io.emit('update_board');
                 io.emit('battle_winner_announcement', { winnerName });
-                bot.sendMessage(winnerTgId, `🏆 *ПОБЕДА В БАТТЛЕ!*`);
-                bot.sendMessage(loserTgId, `💣 *БАТТЛ ЗАВЕРШЕН!*`);
-                activeBattle = null;
+                bot.sendMessage(winnerTgId, `🏆 *ПОБЕДА В БАТТЛЕ!*`).catch(() => {});
+                bot.sendMessage(loserTgId, `💣 *БАТТЛ ЗАВЕРШЕН!*`).catch(() => {});
                 res.json({ success: true });
             });
         });
