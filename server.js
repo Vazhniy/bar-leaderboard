@@ -29,11 +29,13 @@ db.serialize(() => {
         id INTEGER PRIMARY KEY AUTOINCREMENT,
         telegram_id TEXT UNIQUE,
         name TEXT,
+        avatar_url TEXT DEFAULT '',
         count INTEGER DEFAULT 0,
         bombs INTEGER DEFAULT 0,
         wins INTEGER DEFAULT 0,
         created_at DATETIME DEFAULT CURRENT_TIMESTAMP
     )`);
+    db.run(`ALTER TABLE guests ADD COLUMN avatar_url TEXT DEFAULT ''`, () => {});
     db.run(`ALTER TABLE guests ADD COLUMN bombs INTEGER DEFAULT 0`, () => {});
     db.run(`ALTER TABLE guests ADD COLUMN wins INTEGER DEFAULT 0`, () => {});
 });
@@ -47,6 +49,31 @@ bot.on('polling_error', (error) => {
 const userStates = {};
 const activeBattles = {}; 
 let activeTicTacToe = null;
+
+// Получение URL аватарки напрямую из Telegram
+async function getTelegramAvatarUrl(userId) {
+    try {
+        const photos = await bot.getUserProfilePhotos(userId, { limit: 1 });
+        if (photos && photos.photos && photos.photos.length > 0) {
+            const fileId = photos.photos[0][0].file_id;
+            const file = await bot.getFile(fileId);
+            return `https://api.telegram.org/file/bot${BOT_TOKEN}/${file.file_path}`;
+        }
+    } catch (e) {
+        console.error(`Не удалось подтянуть аватарку TG для ${userId}:`, e.message);
+    }
+    return '';
+}
+
+// Авто-обновление аватарки в базе данных
+async function syncUserAvatar(tgId) {
+    const avatarUrl = await getTelegramAvatarUrl(tgId);
+    if (avatarUrl) {
+        db.run(`UPDATE guests SET avatar_url = ? WHERE telegram_id = ?`, [avatarUrl, tgId], (err) => {
+            if (!err) io.emit('update_board');
+        });
+    }
+}
 
 const mainMenuKeyboard = {
     reply_markup: {
@@ -64,6 +91,8 @@ bot.onText(/\/start|\/scan/, (msg) => {
     const tgId = msg.from.id.toString();
     const text = msg.text || '';
 
+    syncUserAvatar(tgId);
+
     if (text.includes('scan')) {
         handleScan(chatId, tgId, msg.from.first_name || 'Гость');
     } else {
@@ -72,17 +101,19 @@ bot.onText(/\/start|\/scan/, (msg) => {
 });
 
 function handleScan(chatId, tgId, defaultName) {
-    db.get(`SELECT * FROM guests WHERE telegram_id = ?`, [tgId], (err, guest) => {
+    db.get(`SELECT * FROM guests WHERE telegram_id = ?`, [tgId], async (err, guest) => {
         if (err) return console.error(err);
+        const avatarUrl = await getTelegramAvatarUrl(tgId);
+
         if (!guest) {
-            userStates[chatId] = { action: 'ENTER_NAME', tgId, defaultName };
+            userStates[chatId] = { action: 'ENTER_NAME', tgId, defaultName, avatarUrl };
             bot.sendMessage(chatId, `🍹 *Добро пожаловать в бар НА ДНЕ!*\nКак тебя подписать на ТВ?`, {
                 reply_markup: {
                     inline_keyboard: [[{ text: `Использовать "${defaultName}"`, callback_data: `use_default_name` }]]
                 }
             });
         } else {
-            db.run(`UPDATE guests SET count = count + 1 WHERE id = ?`, [guest.id], (err) => {
+            db.run(`UPDATE guests SET count = count + 1, avatar_url = COALESCE(NULLIF(?, ''), avatar_url) WHERE id = ?`, [avatarUrl, guest.id], (err) => {
                 if (err) return console.error(err);
                 io.emit('update_board');
                 bot.sendMessage(chatId, `🔥 *+1 ШОТ ЗАЧИСЛЕН!* Выпито: *${guest.count + 1}* шотов.`, mainMenuKeyboard);
@@ -91,7 +122,7 @@ function handleScan(chatId, tgId, defaultName) {
     });
 }
 
-bot.on('message', (msg) => {
+bot.on('message', async (msg) => {
     const chatId = msg.chat.id;
     const tgId = msg.from.id.toString();
     const text = msg.text ? msg.text.trim() : '';
@@ -101,7 +132,7 @@ bot.on('message', (msg) => {
     const state = userStates[chatId];
 
     if (state && state.action === 'ENTER_NAME') {
-        registerNewGuest(chatId, state.tgId, text);
+        registerNewGuest(chatId, state.tgId, text, state.avatarUrl);
         return;
     }
 
@@ -117,7 +148,7 @@ bot.on('message', (msg) => {
 
     if (text === "💬 Написать на ТВ") {
         userStates[chatId] = { action: 'AWAITING_CHAT_MESSAGE' };
-        bot.sendMessage(chatId, `✍️ *Напиши сообщение для ТВ:*`);
+        bot.sendMessage(chatId, `✍️️ *Напиши сообщение для ТВ:*`);
         return;
     }
 
@@ -160,6 +191,7 @@ function sendReactionTargetList(chatId, tgId) {
 }
 
 function sendUserProfile(chatId, tgId) {
+    syncUserAvatar(tgId);
     db.get(`SELECT * FROM guests WHERE telegram_id = ?`, [tgId], (err, guest) => {
         if (!guest) return bot.sendMessage(chatId, "⚠️ Сканируй QR у бармена для старта!", mainMenuKeyboard);
         const winrate = guest.bombs > 0 ? Math.round((guest.wins / guest.bombs) * 100) : 0;
@@ -206,7 +238,7 @@ bot.on('callback_query', (query) => {
 
     const state = userStates[chatId];
     if (data === 'use_default_name' && state) {
-        registerNewGuest(chatId, state.tgId, state.defaultName);
+        registerNewGuest(chatId, state.tgId, state.defaultName, state.avatarUrl);
         bot.answerCallbackQuery(query.id).catch(() => {});
         return;
     }
@@ -264,7 +296,6 @@ bot.on('callback_query', (query) => {
         db.get(`SELECT name FROM guests WHERE telegram_id = ?`, [tgId], (err, challenger) => {
             const challengerName = challenger ? challenger.name : 'Аноним';
 
-            // Автоотмена через 5 секунд, если противник не принял вызов
             const timeoutTimer = setTimeout(() => {
                 if (activeBattles[battleId] && !activeBattles[battleId].accepted) {
                     io.emit('battle_timeout', { challengerName, targetName });
@@ -317,7 +348,7 @@ bot.on('callback_query', (query) => {
         const battle = activeBattles[battleId];
         if (battle) {
             battle.accepted = true;
-            clearTimeout(battle.timeoutTimer); // Отменяем таймер автоотмены
+            clearTimeout(battle.timeoutTimer);
 
             io.emit('battle_accepted', battle);
             bot.sendMessage(battle.challengerTgId, `🎉 *${battle.targetName} ПРИНЯЛ ТВОЙ ВЫЗОВ!* Бегом к стойке!`);
@@ -333,7 +364,7 @@ bot.on('callback_query', (query) => {
         const battle = activeBattles[battleId];
         if (battle) {
             battle.accepted = true;
-            clearTimeout(battle.timeoutTimer); // Отменяем таймер автоотмены
+            clearTimeout(battle.timeoutTimer);
 
             activeTicTacToe = {
                 battleId,
@@ -457,16 +488,16 @@ function handleTicTacToeEnd(result) {
     activeTicTacToe = null;
 }
 
-function registerNewGuest(chatId, tgId, name) {
+function registerNewGuest(chatId, tgId, name, avatarUrl) {
     delete userStates[chatId];
-    db.run(`INSERT INTO guests (telegram_id, name, count, bombs, wins) VALUES (?, ?, 1, 0, 0)`, [tgId, name], function(err) {
+    db.run(`INSERT INTO guests (telegram_id, name, avatar_url, count, bombs, wins) VALUES (?, ?, ?, 1, 0, 0)`, [tgId, name, avatarUrl || ''], function(err) {
         io.emit('update_board');
         bot.sendMessage(chatId, `✅ *Отлично, ${name}!*`, mainMenuKeyboard);
     });
 }
 
 app.get('/api/leaderboard', (req, res) => {
-    db.all(`SELECT id, name, count, bombs, wins FROM guests WHERE count > 0 OR bombs > 0 ORDER BY count DESC, wins DESC LIMIT 30`, [], (err, rows) => {
+    db.all(`SELECT id, name, avatar_url, count, bombs, wins FROM guests WHERE count > 0 OR bombs > 0 ORDER BY count DESC, wins DESC LIMIT 30`, [], (err, rows) => {
         if (err) res.status(500).json([]);
         else res.json(rows || []);
     });
