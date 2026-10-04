@@ -23,7 +23,6 @@ if (!BOT_TOKEN) {
 
 const db = new sqlite3.Database('./database.sqlite');
 
-// Таблица с полями для шотов, бомб и побед
 db.serialize(() => {
     db.run(`CREATE TABLE IF NOT EXISTS guests (
         id INTEGER PRIMARY KEY AUTOINCREMENT,
@@ -35,14 +34,25 @@ db.serialize(() => {
         created_at DATETIME DEFAULT CURRENT_TIMESTAMP
     )`);
 
-    // Безопасное добавление колонок, если база уже существовала
     db.run(`ALTER TABLE guests ADD COLUMN bombs INTEGER DEFAULT 0`, () => {});
     db.run(`ALTER TABLE guests ADD COLUMN wins INTEGER DEFAULT 0`, () => {});
 });
 
 const bot = new TelegramBot(BOT_TOKEN, { polling: true });
-const userStates = {};
+const userStates = {}; // Хранение состояний пользователей (ввод имени, отправка сообщений)
 let activeBattle = null;
+
+// Главные постоянные кнопки меню над клавиатурой
+const mainMenuKeyboard = {
+    reply_markup: {
+        keyboard: [
+            [{ text: "💬 Написать на ТВ" }, { text: "⚔️ Баттлы" }],
+            [{ text: "🔥 Кто в баре" }, { text: "🏆 Мой профиль" }],
+            [{ text: "📊 Топ бара" }]
+        ],
+        resize_keyboard: true
+    }
+};
 
 bot.onText(/\/start|\/scan/, (msg) => {
     const chatId = msg.chat.id;
@@ -52,26 +62,17 @@ bot.onText(/\/start|\/scan/, (msg) => {
     if (text.includes('scan')) {
         handleScan(chatId, tgId, msg.from.first_name || 'Гость');
     } else {
-        sendMainMenu(chatId, tgId);
+        bot.sendMessage(chatId, `🍹 *Добро пожаловать на ДНО!*\nВыбирай разделы в меню ниже:`, {
+            parse_mode: 'Markdown',
+            ...mainMenuKeyboard
+        });
     }
 });
-
-function sendMainMenu(chatId, tgId) {
-    bot.sendMessage(chatId, `🍹 *Бар «НА ДНЕ»*\n\nВыбери действие в меню:`, {
-        parse_mode: 'Markdown',
-        reply_markup: {
-            inline_keyboard: [
-                [{ text: "🔥 Кто сейчас в баре", callback_data: "list_guests" }],
-                [{ text: "⚔️ Вызвать на баттл «БОМБА»", callback_data: "start_battle_select" }]
-            ]
-        }
-    });
-}
 
 function handleScan(chatId, tgId, defaultName) {
     db.get(`SELECT * FROM guests WHERE telegram_id = ?`, [tgId], (err, guest) => {
         if (!guest) {
-            userStates[chatId] = { tgId, defaultName };
+            userStates[chatId] = { action: 'ENTER_NAME', tgId, defaultName };
             bot.sendMessage(chatId, `🍹 *Добро пожаловать в бар НА ДНЕ!*\n\nКак тебя подписать на экране ТВ? Напиши имя в чат или нажми кнопку:`, {
                 parse_mode: 'Markdown',
                 reply_markup: {
@@ -86,14 +87,146 @@ function handleScan(chatId, tgId, defaultName) {
                 io.emit('update_board');
 
                 bot.sendMessage(chatId, `🔥 *+1 ШОТ ЗАЧИСЛЕН!*\n\nС возвращением, *${guest.name}*!\nВсего выпито: *${newCount}* шотов.`, {
-                    parse_mode: 'Markdown'
+                    parse_mode: 'Markdown',
+                    ...mainMenuKeyboard
                 });
-                sendMainMenu(chatId, tgId);
             });
         }
     });
 }
 
+// Текстовые команды меню
+bot.on('message', (msg) => {
+    const chatId = msg.chat.id;
+    const tgId = msg.from.id.toString();
+    const text = msg.text ? msg.text.trim() : '';
+
+    if (!text || text.startsWith('/')) return;
+
+    const state = userStates[chatId];
+
+    // Ожидание имени при первой регистрации
+    if (state && state.action === 'ENTER_NAME') {
+        registerNewGuest(chatId, state.tgId, text);
+        return;
+    }
+
+    // Ожидание текста сообщения на ТВ
+    if (state && state.action === 'AWAITING_CHAT_MESSAGE') {
+        delete userStates[chatId];
+        
+        db.get(`SELECT name FROM guests WHERE telegram_id = ?`, [tgId], (err, guest) => {
+            const senderName = guest ? guest.name : (msg.from.first_name || 'Гость');
+            
+            // Отправляем сообщение через Socket.io на ТВ
+            io.emit('tv_chat_message', {
+                sender: senderName,
+                text: text
+            });
+
+            bot.sendMessage(chatId, `🚀 *Сообщение отправлено на ТВ-экран!*`, {
+                parse_mode: 'Markdown',
+                ...mainMenuKeyboard
+            });
+        });
+        return;
+    }
+
+    // Обработка кликов по постоянным кнопкам
+    if (text === "💬 Написать на ТВ") {
+        userStates[chatId] = { action: 'AWAITING_CHAT_MESSAGE' };
+        bot.sendMessage(chatId, `✍️ *Напиши сообщение или передай привет бара:* \n\nОно появится на главном экране ТВ для всех гостей!`, {
+            parse_mode: 'Markdown'
+        });
+        return;
+    }
+
+    if (text === "⚔️ Баттлы") {
+        sendBattleMenu(chatId, tgId);
+        return;
+    }
+
+    if (text === "🔥 Кто в баре") {
+        sendGuestsList(chatId);
+        return;
+    }
+
+    if (text === "🏆 Мой профиль") {
+        sendUserProfile(chatId, tgId);
+        return;
+    }
+
+    if (text === "📊 Топ бара") {
+        sendLeaderboardList(chatId);
+        return;
+    }
+});
+
+function sendUserProfile(chatId, tgId) {
+    db.get(`SELECT * FROM guests WHERE telegram_id = ?`, [tgId], (err, guest) => {
+        if (!guest) {
+            bot.sendMessage(chatId, "⚠️ Ты еще не зарегистрирован в системе! Отсканируй QR-код у бармена, чтобы начать.", mainMenuKeyboard);
+        } else {
+            const winrate = guest.bombs > 0 ? Math.round((guest.wins / guest.bombs) * 100) : 0;
+            const profileText = `👤 *ТВОЙ ПРОФИЛЬ НА ДНЕ*\n\n` +
+                `🏷 *Имя:* ${guest.name}\n` +
+                `🍹 *Выпито шотов:* ${guest.count}\n` +
+                `💣 *Дуэлей на Бомбах:* ${guest.bombs}\n` +
+                `👑 *Побед в баттлах:* ${guest.wins}\n` +
+                `🎯 *Винрейт:* ${winrate}%`;
+
+            bot.sendMessage(chatId, profileText, { parse_mode: 'Markdown', ...mainMenuKeyboard });
+        }
+    });
+}
+
+function sendGuestsList(chatId) {
+    db.all(`SELECT name, count, bombs FROM guests WHERE count > 0 OR bombs > 0 ORDER BY count DESC`, [], (err, rows) => {
+        if (!rows || rows.length === 0) {
+            bot.sendMessage(chatId, "😴 В баре пока тишина... Будь первым!", mainMenuKeyboard);
+        } else {
+            let text = "🔥 *СЕЙЧАС В БАРЕ:*\n\n";
+            rows.forEach((r, i) => {
+                text += `${i + 1}. *${r.name}* — ${r.count} шотов | 💣 ${r.bombs}\n`;
+            });
+            bot.sendMessage(chatId, text, { parse_mode: 'Markdown', ...mainMenuKeyboard });
+        }
+    });
+}
+
+function sendLeaderboardList(chatId) {
+    db.all(`SELECT name, count, wins FROM guests ORDER BY count DESC, wins DESC LIMIT 10`, [], (err, rows) => {
+        if (!rows || rows.length === 0) {
+            bot.sendMessage(chatId, "📊 Таблица лидеров пуста.", mainMenuKeyboard);
+        } else {
+            let text = "📊 *ТОП-10 ЛИДЕРОВ СМЕНЫ:*\n\n";
+            rows.forEach((r, i) => {
+                const medal = i === 0 ? '🥇' : i === 1 ? '🥈' : i === 2 ? '🥉' : '🔹';
+                text += `${medal} *${r.name}* — ${r.count} шотов (👑 ${r.wins} побед)\n`;
+            });
+            bot.sendMessage(chatId, text, { parse_mode: 'Markdown', ...mainMenuKeyboard });
+        }
+    });
+}
+
+function sendBattleMenu(chatId, tgId) {
+    db.all(`SELECT id, name, telegram_id FROM guests WHERE (count > 0 OR bombs > 0) AND telegram_id != ?`, [tgId], (err, rows) => {
+        if (!rows || rows.length === 0) {
+            bot.sendMessage(chatId, "⚠️ Нет доступных соперников в баре!", mainMenuKeyboard);
+        } else {
+            const buttons = rows.map(r => [{
+                text: `⚔️ Вызвать: ${r.name}`,
+                callback_data: `challenge_${r.telegram_id}_${r.name}`
+            }]);
+            bot.sendMessage(chatId, "🎯 *ВЫБЕРИ СОПЕРНИКА ДЛЯ БАТТЛА «БОМБА НА СКОРОСТЬ»:*", {
+                parse_mode: 'Markdown',
+                reply_markup: { inline_keyboard: buttons }
+            });
+        }
+    });
+}
+
+// Inline Обработки
 bot.on('callback_query', (query) => {
     const chatId = query.message.chat.id;
     const tgId = query.from.id.toString();
@@ -104,39 +237,6 @@ bot.on('callback_query', (query) => {
         registerNewGuest(chatId, state.tgId, state.defaultName);
         bot.answerCallbackQuery(query.id);
         return;
-    }
-
-    if (data === 'list_guests') {
-        db.all(`SELECT name, count, bombs, wins FROM guests WHERE count > 0 OR bombs > 0 ORDER BY count DESC, wins DESC`, [], (err, rows) => {
-            if (!rows || rows.length === 0) {
-                bot.sendMessage(chatId, "😴 В баре пока тишина... Будь первым!");
-            } else {
-                let text = "🔥 *СЕЙЧАС В БАРЕ:*\n\n";
-                rows.forEach((r, i) => {
-                    text += `${i + 1}. *${r.name}* — ${r.count} шотов | 💣 ${r.bombs || 0} (🏆 ${r.wins || 0})\n`;
-                });
-                bot.sendMessage(chatId, text, { parse_mode: 'Markdown' });
-            }
-        });
-        bot.answerCallbackQuery(query.id);
-    }
-
-    if (data === 'start_battle_select') {
-        db.all(`SELECT id, name, telegram_id FROM guests WHERE (count > 0 OR bombs > 0) AND telegram_id != ?`, [tgId], (err, rows) => {
-            if (!rows || rows.length === 0) {
-                bot.sendMessage(chatId, "⚠️ Нет подходящих соперников в баре (или ты тут пока один пьёшь)!");
-            } else {
-                const buttons = rows.map(r => [{
-                    text: `⚔️ Вызвать: ${r.name}`,
-                    callback_data: `challenge_${r.telegram_id}_${r.name}`
-                }]);
-                bot.sendMessage(chatId, "🎯 *ВЫБЕРИ СОПЕРНИКА ДЛЯ БАТТЛА «БОМБА НА СКОРОСТЬ»:*", {
-                    parse_mode: 'Markdown',
-                    reply_markup: { inline_keyboard: buttons }
-                });
-            }
-        });
-        bot.answerCallbackQuery(query.id);
     }
 
     if (data.startsWith('challenge_')) {
@@ -193,22 +293,11 @@ bot.on('callback_query', (query) => {
     }
 });
 
-bot.on('message', (msg) => {
-    const chatId = msg.chat.id;
-    const state = userStates[chatId];
-
-    if (state && msg.text && !msg.text.startsWith('/')) {
-        const customName = msg.text.trim();
-        registerNewGuest(chatId, state.tgId, customName);
-    }
-});
-
 function registerNewGuest(chatId, tgId, name) {
     delete userStates[chatId];
     db.run(`INSERT INTO guests (telegram_id, name, count, bombs, wins) VALUES (?, ?, 1, 0, 0)`, [tgId, name], function(err) {
         io.emit('update_board');
-        bot.sendMessage(chatId, `✅ *Отлично, ${name}!*\n\nТебе зачислен 1-й шот! 🎉`, { parse_mode: 'Markdown' });
-        sendMainMenu(chatId, tgId);
+        bot.sendMessage(chatId, `✅ *Отлично, ${name}!*\n\nТебе зачислен 1-й шот! 🎉`, { parse_mode: 'Markdown', ...mainMenuKeyboard });
     });
 }
 
@@ -220,23 +309,16 @@ app.get('/api/leaderboard', (req, res) => {
     });
 });
 
-app.get('/api/active-battle', (req, res) => {
-    res.json(activeBattle || { noBattle: true });
-});
-
-// Начисление результатов баттла (обоим +1 бомба, победителю +1 победа)
 app.post('/api/battle-winner', (req, res) => {
     const { winnerTgId, winnerName, loserTgId } = req.body;
 
     if (winnerTgId && loserTgId) {
-        // Победителю: +1 бомба и +1 победа
         db.run(`UPDATE guests SET bombs = bombs + 1, wins = wins + 1 WHERE telegram_id = ?`, [winnerTgId], () => {
-            // Проигравшему: просто +1 бомба
             db.run(`UPDATE guests SET bombs = bombs + 1 WHERE telegram_id = ?`, [loserTgId], () => {
                 io.emit('update_board');
                 io.emit('battle_winner_announcement', { winnerName });
                 
-                bot.sendMessage(winnerTgId, `🏆 *ПОБЕДА В БАТТЛЕ!* Тебе зачислена 💣 +1 Бомба и 🏆 +1 Выигранный баттл!`);
+                bot.sendMessage(winnerTgId, `🏆 *ПОБЕДА В БАТТЛЕ!* Тебе зачислена 💣 +1 Бомба и 👑 +1 Выигранный баттл!`);
                 bot.sendMessage(loserTgId, `💣 *БАТТЛ ЗАВЕРШЕН!* Тебе зачислена 💣 +1 Бомба за участие!`);
                 
                 activeBattle = null;
