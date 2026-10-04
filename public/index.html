@@ -5,11 +5,11 @@
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>Табло бара НА ДНЕ</title>
     <script src="/socket.io/socket.io.js"></script>
-    <link href="https://fonts.googleapis.com/css2?family=Permanent+Marker&family=VT323&family=Russo+One&display=swap" rel="stylesheet">
+    <link href="https://fonts.googleapis.com/css2?family=Russo+One&family=VT323&display=swap" rel="stylesheet">
     <style>
         :root {
             --bg-color: #0a0808;
-            --blood-red: #d11100;
+            --blood-red: #e61200;
             --dirty-yellow: #e5a910;
             --text-light: #e0e0e0;
             --card-bg: #151515;
@@ -20,32 +20,96 @@
         body {
             background-color: var(--bg-color);
             background-image: 
-                radial-gradient(circle at 50% 30%, rgba(209, 17, 0, 0.15) 0%, transparent 60%),
-                radial-gradient(circle at 10% 80%, rgba(229, 169, 16, 0.05) 0%, transparent 40%);
+                radial-gradient(circle at 50% 25%, rgba(230, 18, 0, 0.22) 0%, transparent 65%),
+                radial-gradient(circle at 10% 80%, rgba(229, 169, 16, 0.08) 0%, transparent 40%);
             color: var(--text-light);
-            font-family: 'Permanent Marker', cursive;
+            font-family: 'Russo One', sans-serif;
             min-height: 100vh;
             display: flex;
             flex-direction: column;
             align-items: center;
-            padding: 40px 60px;
+            padding: 35px 50px;
             overflow: hidden;
             position: relative;
         }
 
-        .header { text-align: center; margin-bottom: 40px; transform: rotate(-2deg); }
-        .header h1 {
-            font-size: 5.5rem; color: #fff; text-transform: uppercase; letter-spacing: 5px;
-            text-shadow: 0 0 10px var(--blood-red), 0 0 20px var(--blood-red), 0 0 40px var(--blood-red);
-            animation: neonFlicker 3s infinite alternate;
-        }
-        .header .subtitle {
-            font-family: 'VT323', monospace; font-size: 2rem; color: var(--dirty-yellow);
-            background: #000; display: inline-block; padding: 0 15px; transform: rotate(3deg);
-            border: 1px solid var(--dirty-yellow);
+        /* Заголовок "НА ДНЕ" */
+        .header {
+            text-align: center;
+            margin-bottom: 35px;
+            display: flex;
+            flex-direction: column;
+            align-items: center;
         }
 
-        @keyframes neonFlicker { 0%, 100% { opacity: 1; } 50% { opacity: 0.85; } }
+        .header h1 {
+            font-family: 'Russo One', sans-serif;
+            font-size: 6.5rem;
+            color: #ffffff;
+            text-transform: uppercase;
+            letter-spacing: 12px;
+            margin-left: 12px; /* компенсация отступа letter-spacing */
+            line-height: 1;
+            position: relative;
+            text-shadow: 
+                0 0 5px #fff,
+                0 0 10px #fff,
+                0 0 20px var(--blood-red),
+                0 0 40px var(--blood-red),
+                0 0 80px var(--blood-red),
+                0 0 100px var(--blood-red);
+            animation: neonPulse 3.5s infinite alternate;
+        }
+
+        .header .subtitle {
+            font-family: 'VT323', monospace;
+            font-size: 2.2rem;
+            color: var(--dirty-yellow);
+            letter-spacing: 4px;
+            text-transform: uppercase;
+            margin-top: 10px;
+            background: #000;
+            display: inline-block;
+            padding: 4px 20px;
+            border: 2px solid var(--dirty-yellow);
+            box-shadow: 0 0 15px rgba(229, 169, 16, 0.3);
+            transform: rotate(-1deg);
+        }
+
+        /* Анимация пульсации и легкого скачка питания */
+        @keyframes neonPulse {
+            0%, 100% {
+                text-shadow: 
+                    0 0 5px #fff,
+                    0 0 12px #fff,
+                    0 0 25px var(--blood-red),
+                    0 0 50px var(--blood-red),
+                    0 0 90px var(--blood-red);
+                opacity: 1;
+            }
+            50% {
+                text-shadow: 
+                    0 0 3px #fff,
+                    0 0 8px #fff,
+                    0 0 18px var(--blood-red),
+                    0 0 35px var(--blood-red),
+                    0 0 60px var(--blood-red);
+                opacity: 0.92;
+            }
+            52% {
+                text-shadow: none;
+                color: #4a0600;
+                opacity: 0.4;
+            }
+            54% {
+                text-shadow: 
+                    0 0 5px #fff,
+                    0 0 12px #fff,
+                    0 0 25px var(--blood-red),
+                    0 0 50px var(--blood-red);
+                opacity: 1;
+            }
+        }
 
         .board { width: 100%; max-width: 1000px; display: flex; flex-direction: column; gap: 20px; }
 
@@ -54,8 +118,8 @@
             display: grid; grid-template-columns: 80px 1fr auto; align-items: center;
             box-shadow: 8px 8px 0px rgba(0,0,0,0.8); position: relative; transition: all 0.3s ease;
         }
-        .card:nth-child(odd) { transform: rotate(-1deg); }
-        .card:nth-child(even) { transform: rotate(1deg); }
+        .card:nth-child(odd) { transform: rotate(-0.8deg); }
+        .card:nth-child(even) { transform: rotate(0.8deg); }
 
         .card.rank-1 { border-color: var(--dirty-yellow); background: #2a1f00; }
         .card.rank-1 .rank { color: var(--dirty-yellow); }
@@ -77,9 +141,7 @@
         .score { font-family: 'VT323', monospace; font-size: 3.2rem; color: var(--blood-red); }
         .unit { font-family: 'VT323', monospace; font-size: 1.3rem; color: #777; }
 
-        /* ========================================================
-           СТИЛЬНЫЙ ОВЕРЛЕЙ БАТТЛА
-           ======================================================== */
+        /* ВСПЛЫВАЮЩИЙ ОВЕРЛЕЙ БАТТЛА */
         #battle-overlay {
             position: fixed; top: 0; left: 0; width: 100vw; height: 100vh;
             background: rgba(5, 2, 2, 0.92);
@@ -180,7 +242,6 @@
             letter-spacing: 1px;
         }
 
-        /* ПОБЕДНЫЙ РЕЖИМ */
         .winner-card {
             border-color: var(--dirty-yellow) !important;
             box-shadow: 0 0 60px rgba(229, 169, 16, 0.7) !important;
@@ -217,7 +278,6 @@
 
     <div class="board" id="board"></div>
 
-    <!-- ВСПЛЫВАЮЩЕЕ ОКТНО БАТТЛА -->
     <div id="battle-overlay">
         <div class="battle-card" id="b-card">
             <div class="battle-badge" id="b-badge">💣 ВЫЗОВ НА БАТТЛ «БОМБА» 💣</div>
@@ -232,7 +292,6 @@
                 </div>
             </div>
 
-            <!-- Блок для одного победителя -->
             <div class="winner-name-single" id="winner-single" style="display: none;"></div>
 
             <div class="battle-status-box">
@@ -299,7 +358,6 @@
         updateLeaderboard();
         socket.on('update_board', updateLeaderboard);
 
-        // 1. Вызов брошен
         socket.on('battle_announced', (data) => {
             bCard.className = "battle-card";
             bBadge.className = "battle-badge";
@@ -314,20 +372,17 @@
             overlay.style.display = 'flex';
         });
 
-        // 2. Баттл принят
         socket.on('battle_accepted', (data) => {
             bBadge.innerText = "🔥 БАТТЛ ПРИНЯТ! 🔥";
             bStatus.innerText = "БАРМЕН, ГОТОВЬ БОМБЫ! ВСЕ К СТОЙКЕ!";
         });
 
-        // 3. Отказ от баттла
         socket.on('battle_declined', (data) => {
             bBadge.innerText = "🐔 ВЫЗОВ ОТКЛОНЁН 🐔";
             bStatus.innerText = `${data.targetName} зассал(а) принимать вызов!`;
             setTimeout(() => { overlay.style.display = 'none'; }, 4000);
         });
 
-        // 4. Выявление победителя
         socket.on('battle_winner_announcement', (data) => {
             bCard.className = "battle-card winner-card";
             bBadge.className = "battle-badge winner-badge";
