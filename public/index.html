@@ -5,26 +5,19 @@
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>Табло бара НА ДНЕ</title>
     <script src="/socket.io/socket.io.js"></script>
-    <!-- Подключаем гранжевые и ретро шрифты -->
     <link href="https://fonts.googleapis.com/css2?family=Permanent+Marker&family=VT323&display=swap" rel="stylesheet">
     <style>
         :root {
             --bg-color: #0a0808;
             --blood-red: #d11100;
             --dirty-yellow: #e5a910;
-            --tape-gray: #2a2a2a;
             --text-light: #e0e0e0;
         }
 
-        * {
-            box-sizing: border-box;
-            margin: 0;
-            padding: 0;
-        }
+        * { box-sizing: border-box; margin: 0; padding: 0; }
 
         body {
             background-color: var(--bg-color);
-            /* Имитация красного освещения и грязной текстуры стены */
             background-image: 
                 radial-gradient(circle at 50% 30%, rgba(209, 17, 0, 0.15) 0%, transparent 60%),
                 radial-gradient(circle at 10% 80%, rgba(229, 169, 16, 0.05) 0%, transparent 40%);
@@ -39,168 +32,85 @@
             position: relative;
         }
 
-        /* Эффект шума (статики) как на старых ТВ из 90-х */
-        body::before {
-            content: "";
-            position: fixed;
-            top: 0; left: 0; width: 100vw; height: 100vh;
-            background-image: url("data:image/svg+xml,%3Csvg viewBox='0 0 200 200' xmlns='http://www.w3.org/2000/svg'%3E%3Cfilter id='noiseFilter'%3E%3CfeTurbulence type='fractalNoise' baseFrequency='0.8' numOctaves='3' stitchTiles='stitch'/%3E%3C/filter%3E%3Crect width='100%25' height='100%25' filter='url(%23noiseFilter)'/%3E%3C/svg%3E");
-            opacity: 0.06;
-            pointer-events: none;
-            z-index: -1;
-        }
-
-        /* Сломанная неоновая вывеска */
-        .header {
-            text-align: center;
-            margin-bottom: 50px;
-            transform: rotate(-2deg);
-        }
-
+        .header { text-align: center; margin-bottom: 50px; transform: rotate(-2deg); }
         .header h1 {
-            font-size: 6rem;
-            color: #fff;
-            text-transform: uppercase;
-            letter-spacing: 5px;
-            text-shadow: 
-                0 0 10px var(--blood-red),
-                0 0 20px var(--blood-red),
-                0 0 40px var(--blood-red),
-                3px 3px 0px #000;
+            font-size: 6rem; color: #fff; text-transform: uppercase; letter-spacing: 5px;
+            text-shadow: 0 0 10px var(--blood-red), 0 0 20px var(--blood-red), 0 0 40px var(--blood-red);
             animation: neonFlicker 3s infinite alternate;
         }
-
         .header .subtitle {
-            font-family: 'VT323', monospace;
-            font-size: 2rem;
-            color: var(--dirty-yellow);
-            letter-spacing: 2px;
-            text-transform: uppercase;
-            margin-top: -10px;
-            background: #000;
-            display: inline-block;
-            padding: 0 15px;
-            transform: rotate(3deg);
+            font-family: 'VT323', monospace; font-size: 2rem; color: var(--dirty-yellow);
+            background: #000; display: inline-block; padding: 0 15px; transform: rotate(3deg);
             border: 1px solid var(--dirty-yellow);
         }
 
-        @keyframes neonFlicker {
-            0%, 19%, 21%, 23%, 25%, 54%, 56%, 100% {
-                text-shadow: 0 0 10px var(--blood-red), 0 0 20px var(--blood-red), 0 0 40px var(--blood-red), 3px 3px 0px #000;
-                color: #fff;
-            }
-            20%, 24%, 55% {
-                text-shadow: none;
-                color: #330000;
-            }
-        }
+        @keyframes neonFlicker { 0%, 100% { opacity: 1; } 50% { opacity: 0.8; } }
 
-        .board {
-            width: 100%;
-            max-width: 1000px;
-            display: flex;
-            flex-direction: column;
-            gap: 25px;
-        }
+        .board { width: 100%; max-width: 1000px; display: flex; flex-direction: column; gap: 25px; }
 
-        /* Треш-карточки гостей */
         .card {
-            background: #151515;
-            border: 3px solid #333;
-            padding: 15px 30px;
-            display: grid;
-            grid-template-columns: 80px 1fr 180px;
-            align-items: center;
-            box-shadow: 10px 10px 0px rgba(0,0,0,0.8);
-            position: relative;
-            transition: all 0.3s ease;
+            background: #151515; border: 3px solid #333; padding: 15px 30px;
+            display: grid; grid-template-columns: 80px 1fr auto; align-items: center;
+            box-shadow: 10px 10px 0px rgba(0,0,0,0.8); position: relative; transition: all 0.3s ease;
         }
-
-        /* Делаем карточки небрежно разбросанными */
         .card:nth-child(odd) { transform: rotate(-1.5deg); }
         .card:nth-child(even) { transform: rotate(1.5deg); }
 
-        /* Имитация кусков изоленты/скотча */
-        .card::before {
-            content: '';
-            position: absolute;
-            top: -10px; left: 20px;
-            width: 60px; height: 25px;
-            background: rgba(255,255,255,0.1);
-            transform: rotate(-5deg);
-            border: 1px solid rgba(255,255,255,0.05);
-            backdrop-filter: blur(2px);
-        }
-
-        /* Топ-3: Грубый уличный стиль */
-        .card.rank-1 { 
-            border-color: var(--dirty-yellow); 
-            background: #2a1f00;
-            box-shadow: 10px 10px 0px #000, 0 0 20px rgba(229, 169, 16, 0.2);
-        }
+        .card.rank-1 { border-color: var(--dirty-yellow); background: #2a1f00; }
         .card.rank-1 .rank { color: var(--dirty-yellow); }
 
-        .card.rank-2 { 
-            border-color: #888; 
-            background: #1a1a1a;
-        }
-        .card.rank-2 .rank { color: #aaa; }
-
-        .card.rank-3 { 
-            border-color: #8b5a2b; 
-            background: #201308;
-        }
-        .card.rank-3 .rank { color: #cd7f32; }
-
-        .rank {
-            font-size: 3rem;
-            color: #555;
-            text-shadow: 2px 2px 0 #000;
-        }
-
-        .name {
-            font-size: 2.5rem;
-            letter-spacing: 2px;
-            color: #eee;
-            text-shadow: 2px 2px 0 #000;
-            white-space: nowrap;
-            overflow: hidden;
-            text-overflow: ellipsis;
-        }
-
-        .score-box {
-            text-align: right;
-            background: #000;
-            padding: 10px;
-            border: 2px dashed #444;
-            transform: rotate(2deg);
-        }
-
-        /* Счетчик в стиле ретро-электроники 90-х */
-        .score {
+        .rank { font-size: 3rem; color: #555; }
+        .name-container { display: flex; flex-direction: column; justify-content: center; }
+        .name { font-size: 2.5rem; color: #eee; }
+        
+        /* Блок статистики бомб */
+        .battle-stats {
             font-family: 'VT323', monospace;
-            font-size: 3.5rem;
-            color: var(--blood-red);
-            text-shadow: 0 0 10px var(--blood-red);
-            display: inline-block;
+            font-size: 1.4rem;
+            color: #ffaa00;
+            display: flex;
+            gap: 15px;
+            margin-top: 2px;
         }
 
-        .unit {
-            font-family: 'VT323', monospace;
-            font-size: 1.5rem;
-            color: #777;
-            margin-left: 5px;
+        .score-box { text-align: right; background: #000; padding: 10px; border: 2px dashed #444; }
+        .score { font-family: 'VT323', monospace; font-size: 3.5rem; color: var(--blood-red); }
+        .unit { font-family: 'VT323', monospace; font-size: 1.5rem; color: #777; }
+
+        /* ОКНО БАТТЛА И ПОБЕДЫ */
+        #battle-overlay {
+            position: fixed; top: 0; left: 0; width: 100vw; height: 100vh;
+            background: rgba(10, 0, 0, 0.95);
+            display: none; flex-direction: column; align-items: center; justify-content: center;
+            z-index: 9999; text-align: center;
+            border: 15px solid var(--blood-red);
+            animation: warningPulse 0.5s infinite alternate;
         }
 
-        /* Грязный глитч при добавлении шота */
-        @keyframes trashBump {
-            0% { transform: scale(1) translate(0, 0); }
-            20% { transform: scale(1.4) translate(-3px, 3px); color: #fff; text-shadow: -3px 0 red, 3px 0 blue; }
-            40% { transform: scale(1.4) translate(3px, -3px); color: #fff; text-shadow: 3px 0 red, -3px 0 blue; }
-            60% { transform: scale(1.4) translate(-3px, -3px); color: var(--blood-red); text-shadow: 0 0 30px var(--blood-red); }
-            100% { transform: scale(1) translate(0, 0); }
+        @keyframes warningPulse {
+            0% { border-color: var(--blood-red); box-shadow: inset 0 0 50px var(--blood-red); }
+            100% { border-color: var(--dirty-yellow); box-shadow: inset 0 0 100px var(--dirty-yellow); }
         }
-        .pulse { animation: trashBump 0.4s steps(2, end); }
+
+        .battle-title { font-size: 4rem; color: var(--dirty-yellow); text-shadow: 0 0 20px red; }
+        .battle-versus { font-size: 5rem; color: #fff; margin: 20px 0; }
+        .battle-status { font-family: 'VT323', monospace; font-size: 3rem; color: #00f0ff; }
+
+        .winner-mode {
+            border-color: var(--dirty-yellow) !important;
+            background: radial-gradient(circle, rgba(229,169,16,0.3) 0%, rgba(0,0,0,0.95) 100%) !important;
+        }
+        .winner-name {
+            font-size: 6rem !important;
+            color: var(--dirty-yellow) !important;
+            text-shadow: 0 0 30px var(--dirty-yellow), 0 0 60px red !important;
+            animation: winnerZoom 0.6s cubic-bezier(0.175, 0.885, 0.32, 1.275) infinite alternate;
+        }
+
+        @keyframes winnerZoom {
+            0% { transform: scale(1); }
+            100% { transform: scale(1.15); }
+        }
     </style>
 </head>
 <body>
@@ -210,13 +120,21 @@
         <div class="subtitle">Minsk Shot Bar</div>
     </div>
 
-    <div class="board" id="board">
-        <!-- Список заполняется автоматически -->
+    <div class="board" id="board"></div>
+
+    <div id="battle-overlay">
+        <div class="battle-title" id="b-title">🚨 ВЫЗОВ НА БАТТЛ! 🚨</div>
+        <div class="battle-versus" id="b-vs">ИГРОК 1 💣 ИГРОК 2</div>
+        <div class="battle-status" id="b-status">ЖДЕМ ПОДТВЕРЖДЕНИЯ В TELEGRAM...</div>
     </div>
 
     <script>
         const socket = io();
         const board = document.getElementById('board');
+        const overlay = document.getElementById('battle-overlay');
+        const bTitle = document.getElementById('b-title');
+        const bVs = document.getElementById('b-vs');
+        const bStatus = document.getElementById('b-status');
 
         async function updateLeaderboard() {
             try {
@@ -227,13 +145,22 @@
                     const rank = index + 1;
                     let card = document.getElementById(`guest-${guest.id}`);
 
+                    const bombsCount = guest.bombs || 0;
+                    const winsCount = guest.wins || 0;
+                    const battleBadge = bombsCount > 0 
+                        ? `💣 ${bombsCount} ${winsCount > 0 ? `| 👑 ${winsCount} ПОБЕД` : ''}`
+                        : '';
+
                     if (!card) {
                         card = document.createElement('div');
                         card.id = `guest-${guest.id}`;
                         card.className = `card rank-${rank <= 3 ? rank : 'other'}`;
                         card.innerHTML = `
                             <div class="rank">#${rank}</div>
-                            <div class="name">${guest.name}</div>
+                            <div class="name-container">
+                                <div class="name">${guest.name}</div>
+                                <div class="battle-stats" id="b-stats-${guest.id}">${battleBadge}</div>
+                            </div>
                             <div class="score-box">
                                 <span class="score" id="score-${guest.id}">${guest.count}</span>
                                 <span class="unit">ШОТОВ</span>
@@ -241,36 +168,54 @@
                         `;
                         board.appendChild(card);
                     } else {
-                        const scoreEl = document.getElementById(`score-${guest.id}`);
-                        if (parseInt(scoreEl.innerText) !== guest.count) {
-                            scoreEl.innerText = guest.count;
-                            scoreEl.classList.remove('pulse');
-                            void scoreEl.offsetWidth; // перезапуск анимации
-                            scoreEl.classList.add('pulse');
-                        }
+                        document.getElementById(`score-${guest.id}`).innerText = guest.count;
+                        document.getElementById(`b-stats-${guest.id}`).innerText = battleBadge;
                     }
 
-                    // Обновление ранга
                     card.className = `card rank-${rank <= 3 ? rank : 'other'}`;
                     card.querySelector('.rank').innerText = `#${rank}`;
                     board.appendChild(card);
                 });
-
-                // Удаляем тех, кого сбросили
-                const currentIds = guests.map(g => `guest-${g.id}`);
-                Array.from(board.children).forEach(child => {
-                    if (!currentIds.includes(child.id)) child.remove();
-                });
-
-            } catch (e) {
-                console.error("Ошибка загрузки:", e);
-            }
+            } catch (e) { console.error(e); }
         }
 
         updateLeaderboard();
+        socket.on('update_board', updateLeaderboard);
 
-        socket.on('update_board', () => {
-            updateLeaderboard();
+        socket.on('battle_announced', (data) => {
+            overlay.classList.remove('winner-mode');
+            bTitle.innerText = "💣 ВЫЗОВ НА БАТТЛ «БОМБА»! 💣";
+            bVs.innerText = `${data.challengerName} ⚔️ ${data.targetName}`;
+            bStatus.innerText = "ОЖИДАНИЕ ПОДТВЕРЖДЕНИЯ В TELEGRAM...";
+            overlay.style.display = 'flex';
+        });
+
+        socket.on('battle_accepted', (data) => {
+            overlay.classList.remove('winner-mode');
+            bTitle.innerText = "🔥 БАТТЛ ПРИНЯТ! 🔥";
+            bVs.innerText = `${data.challengerName} VS ${data.targetName}`;
+            bStatus.innerText = "БАРМЕН, ГОТОВЬ БОМБЫ! ВСЕ К СТОЙКЕ!";
+        });
+
+        socket.on('battle_declined', (data) => {
+            bTitle.innerText = "🐔 СОПЕРНИК СЛИЛСЯ! 🐔";
+            bVs.innerText = `${data.targetName} зассал вызова`;
+            bStatus.innerText = "ОТМЕНА ДУЭЛИ";
+            setTimeout(() => { overlay.style.display = 'none'; }, 4000);
+        });
+
+        socket.on('battle_winner_announcement', (data) => {
+            overlay.classList.add('winner-mode');
+            bTitle.innerText = "👑 ПОБЕДИТЕЛЬ БАТТЛА! 👑";
+            bVs.className = "battle-versus winner-name";
+            bVs.innerText = data.winnerName;
+            bStatus.innerText = "💣 +1 БОМБА И 👑 ПОБЕДА ЗАЧИСЛЕНЫ!";
+            
+            setTimeout(() => {
+                overlay.style.display = 'none';
+                overlay.classList.remove('winner-mode');
+                bVs.className = "battle-versus";
+            }, 7000);
         });
     </script>
 </body>
