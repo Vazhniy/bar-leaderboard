@@ -4,40 +4,91 @@
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>Экран Бармена</title>
+    <script src="/socket.io/socket.io.js"></script>
     <style>
         body {
             background: #0d0d14; color: #fff; font-family: -apple-system, sans-serif;
             display: flex; flex-direction: column; align-items: center; justify-content: center;
             min-height: 100vh; margin: 0; text-align: center; padding: 20px;
         }
-        h1 { color: #00f0ff; font-size: 2rem; margin-bottom: 10px; }
-        p { color: #aaa; margin-bottom: 20px; }
-        .qr-card { background: #fff; padding: 20px; border-radius: 20px; box-shadow: 0 0 30px rgba(0,240,255,0.3); }
-        img { width: 280px; height: 280px; display: block; }
-        button {
-            margin-top: 35px; background: rgba(255, 0, 85, 0.2); border: 1px solid #ff0055;
-            color: #ff0055; padding: 12px 24px; border-radius: 12px; font-weight: bold; cursor: pointer;
+        h1 { color: #00f0ff; font-size: 1.8rem; margin-bottom: 5px; }
+        p { color: #aaa; margin-bottom: 15px; }
+        .qr-card { background: #fff; padding: 15px; border-radius: 20px; box-shadow: 0 0 30px rgba(0,240,255,0.3); }
+        img { width: 220px; height: 220px; display: block; }
+        
+        #battle-box {
+            display: none; background: #1e102a; border: 2px solid #ff0055;
+            border-radius: 15px; padding: 20px; margin-bottom: 25px; width: 100%; max-width: 320px;
+            box-shadow: 0 0 25px rgba(255, 0, 85, 0.4);
+        }
+        #battle-box h2 { color: #ffaa00; font-size: 1.3rem; margin-bottom: 15px; }
+        .btn-winner {
+            background: #ff0055; color: #fff; border: none; padding: 15px 10px;
+            font-size: 1.1rem; font-weight: bold; border-radius: 10px; width: 100%;
+            margin-bottom: 10px; cursor: pointer; text-transform: uppercase;
+        }
+        .btn-winner:active { transform: scale(0.96); }
+
+        .btn-reset {
+            margin-top: 25px; background: rgba(255, 255, 255, 0.05); border: 1px solid #444;
+            color: #888; padding: 10px 20px; border-radius: 10px; cursor: pointer;
         }
     </style>
 </head>
 <body>
+
+    <div id="battle-box">
+        <h2>💣 БАТТЛ В РАЗГАРЕ!</h2>
+        <p style="color:#eee; font-size: 0.9rem;">Кто быстрее выпил Бомбу?</p>
+        <button class="btn-winner" id="btn-p1" onclick="selectWinner(1)">ПОБЕДИЛ ИГРОК 1</button>
+        <button class="btn-winner" id="btn-p2" onclick="selectWinner(2)">ПОБЕДИЛ ИГРОК 2</button>
+    </div>
+
     <h1>🍹 ЭКРАН БАРМЕНА</h1>
-    <p>Покажите этот QR-код гостю после выпитого шота</p>
+    <p>QR-код для сканирования шотов</p>
     <div class="qr-card">
         <img id="qr-img" src="" alt="QR-код">
     </div>
-    <button onclick="resetShift()">🧹 Очистить табло (Новая смена)</button>
+
+    <button class="btn-reset" onclick="resetShift()">🧹 Очистить табло (Новая смена)</button>
 
     <script src="https://cdn.jsdelivr.net/npm/qrcode@1.5.1/build/qrcode.min.js"></script>
     <script>
+        const socket = io();
+        let currentBattle = null;
+
         fetch('/api/config')
             .then(res => res.json())
             .then(data => {
                 const qrLink = `https://t.me/${data.botUsername}?start=scan`;
-                QRCode.toDataURL(qrLink, { width: 300 }, (err, url) => {
+                QRCode.toDataURL(qrLink, { width: 250 }, (err, url) => {
                     document.getElementById('qr-img').src = url;
                 });
             });
+
+        socket.on('battle_accepted', (battle) => {
+            currentBattle = battle;
+            document.getElementById('btn-p1').innerText = `🏆 ПОБЕДИЛ ${battle.challengerName}`;
+            document.getElementById('btn-p2').innerText = `🏆 ПОБЕДИЛ ${battle.targetName}`;
+            document.getElementById('battle-box').style.display = 'block';
+        });
+
+        function selectWinner(playerNum) {
+            if (!currentBattle) return;
+
+            const winnerTgId = playerNum === 1 ? currentBattle.challengerTgId : currentBattle.targetTgId;
+            const winnerName = playerNum === 1 ? currentBattle.challengerName : currentBattle.targetName;
+            const loserTgId = playerNum === 1 ? currentBattle.targetTgId : currentBattle.challengerTgId;
+
+            fetch('/api/battle-winner', {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({ winnerTgId, winnerName, loserTgId })
+            }).then(() => {
+                document.getElementById('battle-box').style.display = 'none';
+                currentBattle = null;
+            });
+        }
 
         function resetShift() {
             if (confirm("Вы уверены, что хотите обнулить счетчики на ТВ для новой смены?")) {
