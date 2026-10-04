@@ -5,7 +5,7 @@
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>Табло бара НА ДНЕ</title>
     <script src="/socket.io/socket.io.js"></script>
-    <link href="https://fonts.googleapis.com/css2?family=Russo+One&family=VT323&display=swap" rel="stylesheet">
+    <link href="https://fonts.googleapis.com/css2?family=VT323&display=swap" rel="stylesheet">
     <style>
         :root {
             --bg-color: #0a0808;
@@ -16,7 +16,12 @@
             --card-bg: #151515;
         }
 
-        * { box-sizing: border-box; margin: 0; padding: 0; }
+        * { 
+            box-sizing: border-box; 
+            margin: 0; 
+            padding: 0; 
+            font-family: 'VT323', monospace; /* Единый шрифт для всего экрана */
+        }
 
         body {
             background-color: var(--bg-color);
@@ -24,7 +29,6 @@
                 radial-gradient(circle at 50% 25%, rgba(230, 18, 0, 0.22) 0%, transparent 65%),
                 radial-gradient(circle at 10% 80%, rgba(229, 169, 16, 0.08) 0%, transparent 40%);
             color: var(--text-light);
-            font-family: 'Russo One', sans-serif;
             min-height: 100vh;
             display: flex;
             flex-direction: column;
@@ -34,15 +38,14 @@
             position: relative;
         }
 
-        /* Заголовок "НА ДНЕ" и "MINSK SHOT BAR" единым шрифтом VT323 */
-        .header { text-align: center; margin-bottom: 35px; }
+        /* Заголовок "НА ДНЕ" и "MINSK SHOT BAR" */
+        .header { text-align: center; margin-bottom: 30px; }
         .header h1 {
-            font-family: 'VT323', monospace;
-            font-size: 8rem;
+            font-size: 8.5rem;
             color: #ffffff;
             text-transform: uppercase;
             letter-spacing: 8px;
-            line-height: 0.9;
+            line-height: 0.85;
             text-shadow: 
                 0 0 5px #fff,
                 0 0 15px var(--blood-red),
@@ -51,13 +54,12 @@
             animation: neonPulse 3.5s infinite alternate;
         }
         .header .subtitle {
-            font-family: 'VT323', monospace;
-            font-size: 2.2rem;
+            font-size: 2.4rem;
             color: var(--dirty-yellow);
             letter-spacing: 4px;
             text-transform: uppercase;
             background: #000;
-            padding: 4px 20px;
+            padding: 4px 22px;
             border: 2px solid var(--dirty-yellow);
             display: inline-block;
             margin-top: 10px;
@@ -68,15 +70,21 @@
             50% { opacity: 0.88; }
         }
 
-        .board { width: 100%; max-width: 1000px; display: flex; flex-direction: column; gap: 20px; }
+        .board { width: 100%; max-width: 1000px; display: flex; flex-direction: column; gap: 18px; }
 
         .card {
-            background: var(--card-bg); border: 3px solid #333; padding: 15px 30px;
-            display: grid; grid-template-columns: 90px 1fr auto; align-items: center;
-            box-shadow: 8px 8px 0px rgba(0,0,0,0.8); position: relative; transition: all 0.3s ease;
+            background: var(--card-bg); 
+            border: 3px solid #333; 
+            padding: 12px 25px;
+            display: grid; 
+            grid-template-columns: 110px 1fr auto; 
+            align-items: center;
+            box-shadow: 8px 8px 0px rgba(0,0,0,0.8); 
+            position: relative; 
+            transition: all 0.3s ease;
         }
-        .card:nth-child(odd) { transform: rotate(-0.8deg); }
-        .card:nth-child(even) { transform: rotate(0.8deg); }
+        .card:nth-child(odd) { transform: rotate(-0.6deg); }
+        .card:nth-child(even) { transform: rotate(0.6deg); }
 
         /* 🔥 ЭФФЕКТ ОГНЯ ДЛЯ 1-ГО МЕСТА */
         .card.rank-1 { 
@@ -134,17 +142,22 @@
             50% { transform: rotate(0.5deg) translateY(-2px); }
         }
 
-        .rank { font-size: 2.8rem; color: #555; }
+        .rank { font-size: 3.2rem; color: #666; letter-spacing: 2px; }
         .name-container { display: flex; flex-direction: column; justify-content: center; }
-        .name { font-size: 2.3rem; color: #eee; }
+        .name { font-size: 3.2rem; color: #eee; letter-spacing: 2px; line-height: 1; }
         
         .battle-stats {
-            font-family: 'VT323', monospace; font-size: 1.4rem; color: #ffaa00; display: flex; gap: 15px; margin-top: 2px;
+            font-size: 1.6rem; 
+            color: #ffaa00; 
+            display: flex; 
+            gap: 15px; 
+            margin-top: 2px;
+            letter-spacing: 1px;
         }
 
-        .score-box { text-align: right; background: #000; padding: 8px 15px; border: 2px dashed #444; }
-        .score { font-family: 'VT323', monospace; font-size: 3.2rem; color: var(--blood-red); }
-        .unit { font-family: 'VT323', monospace; font-size: 1.3rem; color: #777; }
+        .score-box { text-align: right; background: #000; padding: 6px 18px; border: 2px dashed #444; }
+        .score { font-size: 3.8rem; color: var(--blood-red); line-height: 1; }
+        .unit { font-size: 1.6rem; color: #777; margin-left: 5px; }
 
         /* ИНТЕРАКТИВНЫЙ БАРНЫЙ ЧАТ */
         #tv-chat-container {
@@ -166,7 +179,7 @@
             border: 2px solid var(--dirty-yellow);
             box-shadow: 0 0 25px rgba(229, 169, 16, 0.4), 5px 5px 0 #000;
             border-radius: 12px;
-            padding: 15px 25px;
+            padding: 12px 25px;
             display: flex;
             align-items: center;
             gap: 15px;
@@ -180,54 +193,54 @@
         }
 
         .chat-sender {
-            font-family: 'Russo One', sans-serif;
-            font-size: 1.6rem;
+            font-size: 2.2rem;
             color: var(--dirty-yellow);
             background: #000;
-            padding: 4px 12px;
+            padding: 2px 14px;
             border-radius: 6px;
             border: 1px solid #444;
             white-space: nowrap;
         }
 
         .chat-text {
-            font-family: 'Russo One', sans-serif;
-            font-size: 1.8rem;
+            font-size: 2.4rem;
             color: #fff;
             text-shadow: 2px 2px 0 #000;
             word-break: break-word;
+            letter-spacing: 1px;
         }
 
-        /* ОВЕРЛЕЙ БАТТЛА */
+        /* ОВЕРЛЕЙ БАТТЛА В СТИЛЕ VT323 */
         #battle-overlay {
             position: fixed; top: 0; left: 0; width: 100vw; height: 100vh;
-            background: rgba(5, 2, 2, 0.92); backdrop-filter: blur(8px);
+            background: rgba(5, 2, 2, 0.94); backdrop-filter: blur(8px);
             display: none; flex-direction: column; align-items: center; justify-content: center;
             z-index: 9999; padding: 20px;
         }
 
         .battle-card {
             background: #111; border: 4px solid var(--blood-red);
-            box-shadow: 0 0 50px rgba(209, 17, 0, 0.6); border-radius: 20px;
-            padding: 40px 60px; max-width: 900px; width: 90%; text-align: center;
+            box-shadow: 0 0 50px rgba(209, 17, 0, 0.6); border-radius: 15px;
+            padding: 35px 50px; max-width: 900px; width: 90%; text-align: center;
             display: flex; flex-direction: column; align-items: center;
         }
 
         .battle-badge {
-            background: var(--blood-red); color: #fff; font-size: 1.8rem;
-            padding: 8px 25px; border-radius: 50px; margin-bottom: 25px;
+            background: var(--blood-red); color: #fff; font-size: 2.5rem;
+            padding: 6px 30px; border-radius: 8px; margin-bottom: 25px; letter-spacing: 2px;
         }
 
         .versus-container { display: flex; align-items: center; justify-content: center; gap: 25px; width: 100%; margin: 20px 0 30px 0; }
-        .player-box { background: #1a1a1a; border: 2px solid #333; border-radius: 12px; padding: 20px; flex: 1; max-width: 350px; }
-        .player-name { font-size: 2.8rem; color: #fff; }
-        .vs-circle { background: var(--dirty-yellow); color: #000; font-size: 2.2rem; width: 70px; height: 70px; border-radius: 50%; display: flex; align-items: center; justify-content: center; }
-        .battle-status-box { background: #000; border: 1px dashed var(--dirty-yellow); padding: 12px 30px; border-radius: 8px; }
-        .battle-status-text { font-family: 'VT323', monospace; font-size: 2.2rem; color: var(--dirty-yellow); }
+        .player-box { background: #1a1a1a; border: 2px solid #333; border-radius: 10px; padding: 15px 25px; flex: 1; max-width: 350px; }
+        .player-name { font-size: 3.5rem; color: #fff; letter-spacing: 2px; }
+        .vs-circle { background: var(--dirty-yellow); color: #000; font-size: 3rem; width: 75px; height: 75px; border-radius: 50%; display: flex; align-items: center; justify-content: center; flex-shrink: 0; }
+        
+        .battle-status-box { background: #000; border: 2px dashed var(--dirty-yellow); padding: 10px 30px; border-radius: 8px; }
+        .battle-status-text { font-size: 2.6rem; color: var(--dirty-yellow); letter-spacing: 2px; }
 
         .winner-card { border-color: var(--dirty-yellow) !important; box-shadow: 0 0 60px rgba(229, 169, 16, 0.7) !important; }
         .winner-badge { background: var(--dirty-yellow) !important; color: #000 !important; }
-        .winner-name-single { font-size: 4.5rem; color: var(--dirty-yellow); text-shadow: 0 0 25px var(--dirty-yellow); margin: 15px 0; }
+        .winner-name-single { font-size: 5.5rem; color: var(--dirty-yellow); text-shadow: 0 0 25px var(--dirty-yellow); margin: 15px 0; letter-spacing: 3px; }
     </style>
 </head>
 <body>
