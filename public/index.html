@@ -5,168 +5,184 @@
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>Табло бара НА ДНЕ</title>
     <script src="/socket.io/socket.io.js"></script>
-    <link href="https://fonts.googleapis.com/css2?family=Rubik+Glitch&family=Russo+One&family=VT323&display=swap" rel="stylesheet">
+    <link href="https://fonts.googleapis.com/css2?family=Russo+One&family=VT323&display=swap" rel="stylesheet">
     <style>
         :root {
             --bg-color: #080606;
             --blood-red: #ff1100;
-            --deep-red: #880000;
             --dirty-yellow: #ffb700;
             --text-light: #f0f0f0;
             --card-bg: #141212;
         }
 
-        * { box-sizing: border-box; margin: 0; padding: 0; font-family: 'VT323', monospace; }
+        * { box-sizing: border-box; margin: 0; padding: 0; }
 
         body {
             background-color: var(--bg-color);
             background-image: 
-                radial-gradient(circle at 50% 18%, rgba(255, 17, 0, 0.28) 0%, transparent 60%),
-                radial-gradient(circle at 10% 85%, rgba(255, 183, 0, 0.08) 0%, transparent 45%);
+                radial-gradient(circle at 50% 15%, rgba(255, 17, 0, 0.2) 0%, transparent 55%),
+                radial-gradient(circle at 10% 85%, rgba(255, 183, 0, 0.05) 0%, transparent 40%);
             color: var(--text-light);
+            font-family: 'Russo One', sans-serif;
             min-height: 100vh;
             display: flex; flex-direction: column; align-items: center;
-            padding: 30px 50px 140px 50px; overflow: hidden; position: relative;
+            padding: 25px 40px 120px 40px; overflow: hidden; position: relative;
         }
 
         /* ========================================================
-           🔥 НОВЫЙ КРУТОЙ СТИЛЬ ШАПКИ "НА ДНЕ"
+           🔥 ЧЕТКАЯ ЧИТАЕМАЯ ШАПКА "НА ДНЕ"
            ======================================================== */
         .header { 
             text-align: center; 
-            margin-bottom: 35px; 
-            position: relative;
+            margin-bottom: 25px; 
             display: flex;
             flex-direction: column;
             align-items: center;
         }
 
         .header h1 {
-            font-family: 'Rubik Glitch', 'Russo One', sans-serif;
-            font-size: 7.5rem;
+            font-family: 'Russo One', sans-serif;
+            font-size: 6rem;
             color: #ffffff;
             text-transform: uppercase;
-            letter-spacing: 14px;
-            line-height: 0.9;
-            margin-left: 14px;
+            letter-spacing: 10px;
+            margin-left: 10px;
+            line-height: 0.95;
             position: relative;
-            transform: skewX(-4deg) rotate(-1deg);
-            
-            /* Многослойная неоновая 3D-тень */
             text-shadow: 
-                1px 1px 0px #000,
-                2px 2px 0px #000,
-                3px 3px 0px var(--deep-red),
-                4px 4px 0px var(--deep-red),
-                5px 5px 10px rgba(0,0,0,0.9),
-                0 0 10px #fff,
-                0 0 25px var(--blood-red),
-                0 0 50px var(--blood-red),
-                0 0 90px var(--blood-red),
-                0 0 120px rgba(255, 17, 0, 0.6);
-            
-            animation: neonBreathing 4s infinite alternate ease-in-out;
+                0 0 10px rgba(255, 255, 255, 0.8),
+                0 0 20px var(--blood-red),
+                0 0 40px var(--blood-red),
+                0 0 80px var(--blood-red);
+            animation: neonPulse 3s infinite alternate ease-in-out;
         }
 
         .header .subtitle {
-            font-family: 'Russo One', sans-serif;
+            font-family: 'VT323', monospace;
             font-size: 1.8rem;
             color: var(--dirty-yellow);
-            letter-spacing: 6px;
+            letter-spacing: 4px;
             text-transform: uppercase;
-            background: #000000;
-            padding: 6px 28px;
+            background: #000;
+            padding: 2px 20px;
             border: 2px solid var(--dirty-yellow);
-            box-shadow: 
-                0 0 15px rgba(255, 183, 0, 0.4),
-                4px 4px 0px #000;
+            box-shadow: 0 0 12px rgba(255, 183, 0, 0.3);
             display: inline-block;
-            margin-top: 15px;
-            transform: rotate(1.5deg) skewX(-2deg);
+            margin-top: 8px;
         }
 
-        /* Реалистичное неоновое дыхание с перебоем питания */
-        @keyframes neonBreathing {
-            0% {
-                opacity: 1;
-                filter: drop-shadow(0 0 5px rgba(255, 17, 0, 0.8));
-            }
-            70% {
-                opacity: 0.95;
-                filter: drop-shadow(0 0 15px rgba(255, 17, 0, 1));
-            }
-            72% {
-                opacity: 0.3;
-                text-shadow: none;
-                filter: none;
-            }
-            74% {
-                opacity: 1;
-                filter: drop-shadow(0 0 20px rgba(255, 17, 0, 1));
-            }
-            100% {
-                opacity: 0.98;
-                filter: drop-shadow(0 0 10px rgba(255, 17, 0, 0.9));
-            }
+        @keyframes neonPulse {
+            0% { opacity: 1; filter: drop-shadow(0 0 5px var(--blood-red)); }
+            100% { opacity: 0.9; filter: drop-shadow(0 0 15px var(--blood-red)); }
+        }
+
+        /* ========================================================
+           📏 КОМПАКТНЫЙ СПИСОК УЧАСТНИКОВ
+           ======================================================== */
+        .board { 
+            width: 100%; 
+            max-width: 850px; /* Уменьшили ширину доски */
+            display: flex; 
+            flex-direction: column; 
+            gap: 10px; /* Уменьшили отступы между карточками */
+            position: relative; 
+        }
+
+        .card {
+            background: var(--card-bg); 
+            border: 2px solid #2a2a2a; 
+            padding: 8px 18px; /* Уменьшили внутренние отступы */
+            display: grid; 
+            grid-template-columns: 75px 1fr auto; 
+            align-items: center;
+            box-shadow: 4px 4px 0px rgba(0,0,0,0.8); 
+            transition: all 0.3s ease; 
+            position: relative;
+        }
+        .card:nth-child(odd) { transform: rotate(-0.3deg); }
+        .card:nth-child(even) { transform: rotate(0.3deg); }
+
+        .card.rank-1 { 
+            border-color: #ffaa00; 
+            background: linear-gradient(135deg, #2b0e00 0%, #140600 50%, #0d0d0d 100%);
+            animation: fireGlow 1.2s infinite alternate ease-in-out;
+        }
+        @keyframes fireGlow {
+            0% { box-shadow: 0 0 10px rgba(255, 85, 0, 0.7); border-color: #ff3300; }
+            100% { box-shadow: 0 0 20px rgba(255, 170, 0, 0.9); border-color: #ffaa00; }
+        }
+
+        .rank { 
+            font-size: 2rem; 
+            color: #777; 
+            font-family: 'VT323', monospace;
+        }
+
+        .name-container { display: flex; flex-direction: column; justify-content: center; }
+        .name { 
+            font-size: 1.8rem; 
+            color: #eee; 
+            font-family: 'Russo One', sans-serif;
+            letter-spacing: 1px;
+        }
+
+        .battle-stats { 
+            font-size: 1.2rem; 
+            color: #ffaa00; 
+            display: flex; 
+            gap: 10px; 
+            font-family: 'VT323', monospace;
+            margin-top: -2px;
+        }
+
+        .score-box { 
+            text-align: right; 
+            background: #000; 
+            padding: 4px 12px; 
+            border: 1px dashed #444; 
+        }
+        .score { 
+            font-size: 2.6rem; 
+            color: var(--blood-red); 
+            font-family: 'VT323', monospace;
+            line-height: 1;
+        }
+        .unit { 
+            font-size: 1.2rem; 
+            color: #777; 
+            font-family: 'VT323', monospace;
         }
 
         /* ======================================================== */
 
-        .board { width: 100%; max-width: 1000px; display: flex; flex-direction: column; gap: 18px; position: relative; }
-
-        .card {
-            background: var(--card-bg); border: 3px solid #333; padding: 12px 25px;
-            display: grid; grid-template-columns: 110px 1fr auto; align-items: center;
-            box-shadow: 8px 8px 0px rgba(0,0,0,0.8); transition: all 0.3s ease; position: relative;
-        }
-        .card:nth-child(odd) { transform: rotate(-0.6deg); }
-        .card:nth-child(even) { transform: rotate(0.6deg); }
-
-        .card.rank-1 { 
-            border-color: #ffaa00; 
-            background: linear-gradient(135deg, #3a1200 0%, #1a0800 50%, #0d0d0d 100%);
-            animation: fireGlow 1.2s infinite alternate ease-in-out;
-        }
-        @keyframes fireGlow {
-            0% { box-shadow: 0 0 15px rgba(255, 85, 0, 0.8); border-color: #ff3300; }
-            100% { box-shadow: 0 0 25px rgba(255, 170, 0, 1); border-color: #ffaa00; }
-        }
-
-        .rank { font-size: 3.2rem; color: #666; }
-        .name { font-size: 3.2rem; color: #eee; }
-        .battle-stats { font-size: 1.6rem; color: #ffaa00; display: flex; gap: 15px; }
-        .score-box { text-align: right; background: #000; padding: 6px 18px; border: 2px dashed #444; }
-        .score { font-size: 3.8rem; color: var(--blood-red); }
-        .unit { font-size: 1.6rem; color: #777; }
-
         .projectile {
-            position: fixed; font-size: 4rem; z-index: 9999; pointer-events: none;
+            position: fixed; font-size: 3.5rem; z-index: 9999; pointer-events: none;
             transition: all 0.8s cubic-bezier(0.25, 1, 0.5, 1);
         }
 
         .splat-mark {
             position: absolute; top: 50%; left: 50%; transform: translate(-50%, -50%);
-            font-size: 5rem; pointer-events: none; z-index: 50; animation: splatFade 4s forwards;
+            font-size: 4rem; pointer-events: none; z-index: 50; animation: splatFade 4s forwards;
         }
 
         @keyframes splatFade {
             0% { transform: translate(-50%, -50%) scale(0.3); opacity: 1; }
-            20% { transform: translate(-50%, -50%) scale(1.3); opacity: 1; }
+            20% { transform: translate(-50%, -50%) scale(1.2); opacity: 1; }
             80% { opacity: 0.8; }
-            100% { transform: translate(-50%, -50%) scale(1.5); opacity: 0; }
+            100% { transform: translate(-50%, -50%) scale(1.4); opacity: 0; }
         }
 
         #tv-chat-container {
-            position: fixed; bottom: 25px; left: 50%; transform: translateX(-50%);
-            width: 90%; max-width: 900px; display: flex; flex-direction: column; gap: 12px; pointer-events: none; z-index: 8000;
+            position: fixed; bottom: 20px; left: 50%; transform: translateX(-50%);
+            width: 90%; max-width: 800px; display: flex; flex-direction: column; gap: 10px; pointer-events: none; z-index: 8000;
         }
         .chat-bubble {
             background: rgba(18, 12, 12, 0.95); border: 2px solid var(--dirty-yellow);
-            box-shadow: 0 0 25px rgba(229, 169, 16, 0.4); border-radius: 12px; padding: 12px 25px;
-            display: flex; align-items: center; gap: 15px;
+            box-shadow: 0 0 20px rgba(229, 169, 16, 0.3); border-radius: 10px; padding: 10px 20px;
+            display: flex; align-items: center; gap: 12px;
         }
-        .chat-sender { font-size: 2.2rem; color: var(--dirty-yellow); background: #000; padding: 2px 14px; }
-        .chat-text { font-size: 2.4rem; color: #fff; }
+        .chat-sender { font-size: 1.8rem; color: var(--dirty-yellow); background: #000; padding: 2px 10px; font-family: 'VT323', monospace; }
+        .chat-text { font-size: 1.8rem; color: #fff; font-family: 'VT323', monospace; }
 
         #battle-overlay {
             position: fixed; top: 0; left: 0; width: 100vw; height: 100vh;
@@ -176,26 +192,26 @@
         }
 
         .battle-card {
-            background: #111; border: 4px solid var(--blood-red);
-            box-shadow: 0 0 50px rgba(209, 17, 0, 0.6); border-radius: 15px;
-            padding: 35px 50px; max-width: 900px; width: 90%; text-align: center;
+            background: #111; border: 3px solid var(--blood-red);
+            box-shadow: 0 0 40px rgba(209, 17, 0, 0.6); border-radius: 12px;
+            padding: 30px 45px; max-width: 800px; width: 90%; text-align: center;
             display: flex; flex-direction: column; align-items: center;
         }
 
-        .battle-badge { background: var(--blood-red); color: #fff; font-size: 2.5rem; padding: 6px 30px; border-radius: 8px; margin-bottom: 20px; }
+        .battle-badge { background: var(--blood-red); color: #fff; font-size: 2.2rem; padding: 4px 25px; border-radius: 6px; margin-bottom: 18px; font-family: 'VT323', monospace; }
 
         .ttt-grid {
-            display: grid; grid-template-columns: repeat(3, 110px); grid-template-rows: repeat(3, 110px);
-            gap: 15px; margin: 20px 0; background: var(--dirty-yellow); padding: 15px; border-radius: 12px;
+            display: grid; grid-template-columns: repeat(3, 95px); grid-template-rows: repeat(3, 95px);
+            gap: 12px; margin: 15px 0; background: var(--dirty-yellow); padding: 12px; border-radius: 10px;
         }
 
         .ttt-cell {
             background: #000; border: 2px solid #333; display: flex; align-items: center;
-            justify-content: center; font-size: 4.5rem; color: #fff;
+            justify-content: center; font-size: 3.8rem; color: #fff; font-family: 'VT323', monospace;
         }
 
-        .battle-status-box { background: #000; border: 2px dashed var(--dirty-yellow); padding: 10px 30px; border-radius: 8px; }
-        .battle-status-text { font-size: 2.6rem; color: var(--dirty-yellow); }
+        .battle-status-box { background: #000; border: 2px dashed var(--dirty-yellow); padding: 8px 25px; border-radius: 6px; }
+        .battle-status-text { font-size: 2.2rem; color: var(--dirty-yellow); font-family: 'VT323', monospace; }
     </style>
 </head>
 <body>
@@ -213,7 +229,7 @@
         <div class="battle-card" id="b-card">
             <div class="battle-badge" id="b-badge">❌⭕ КРЕСТИКИ-НОЛИКИ ❌⭕</div>
             
-            <div id="b-vs-box" style="display:flex; gap:20px; font-size:3rem; margin-bottom:15px;">
+            <div id="b-vs-box" style="display:flex; gap:20px; font-size:2.5rem; margin-bottom:12px; font-family:'VT323', monospace;">
                 <span id="p1-name" style="color:var(--blood-red)">ИГРОК 1 (❌)</span>
                 <span>VS</span>
                 <span id="p2-name" style="color:var(--dirty-yellow)">ИГРОК 2 (⭕)</span>
@@ -296,8 +312,8 @@
             let senderCard = data.senderId ? document.getElementById(`guest-${data.senderId}`) : null;
 
             const targetRect = targetCard ? targetCard.getBoundingClientRect() : { left: window.innerWidth / 2, top: 200 };
-            const startX = senderCard ? senderCard.getBoundingClientRect().left + 50 : window.innerWidth / 2;
-            const startY = senderCard ? senderCard.getBoundingClientRect().top + 20 : window.innerHeight - 100;
+            const startX = senderCard ? senderCard.getBoundingClientRect().left + 40 : window.innerWidth / 2;
+            const startY = senderCard ? senderCard.getBoundingClientRect().top + 15 : window.innerHeight - 80;
 
             const endX = targetRect.left + (targetRect.width / 2);
             const endY = targetRect.top + (targetRect.height / 2);
@@ -312,7 +328,7 @@
             setTimeout(() => {
                 proj.style.left = `${endX}px`;
                 proj.style.top = `${endY}px`;
-                proj.style.transform = 'scale(1.8) rotate(360deg)';
+                proj.style.transform = 'scale(1.5) rotate(360deg)';
             }, 50);
 
             setTimeout(() => {
@@ -347,7 +363,7 @@
 
         socket.on('ttt_started', (game) => {
             tttGrid.style.display = "grid";
-            bBadge.innerText = "⚔️ ИГРА В РАЗГАРЕ! ⚔️";
+            bBadge.innerText = "⚔️ ИГРА В РАЗГАРЕ! ⚔️️";
             p1Name.innerText = `${game.playerX.name} (❌)`;
             p2Name.innerText = `${game.playerO.name} (⭕)`;
             updateTTTBoard(game.board);
