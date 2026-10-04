@@ -5,13 +5,14 @@
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>Табло бара НА ДНЕ</title>
     <script src="/socket.io/socket.io.js"></script>
-    <link href="https://fonts.googleapis.com/css2?family=Permanent+Marker&family=VT323&display=swap" rel="stylesheet">
+    <link href="https://fonts.googleapis.com/css2?family=Permanent+Marker&family=VT323&family=Russo+One&display=swap" rel="stylesheet">
     <style>
         :root {
             --bg-color: #0a0808;
             --blood-red: #d11100;
             --dirty-yellow: #e5a910;
             --text-light: #e0e0e0;
+            --card-bg: #151515;
         }
 
         * { box-sizing: border-box; margin: 0; padding: 0; }
@@ -32,9 +33,9 @@
             position: relative;
         }
 
-        .header { text-align: center; margin-bottom: 50px; transform: rotate(-2deg); }
+        .header { text-align: center; margin-bottom: 40px; transform: rotate(-2deg); }
         .header h1 {
-            font-size: 6rem; color: #fff; text-transform: uppercase; letter-spacing: 5px;
+            font-size: 5.5rem; color: #fff; text-transform: uppercase; letter-spacing: 5px;
             text-shadow: 0 0 10px var(--blood-red), 0 0 20px var(--blood-red), 0 0 40px var(--blood-red);
             animation: neonFlicker 3s infinite alternate;
         }
@@ -44,26 +45,25 @@
             border: 1px solid var(--dirty-yellow);
         }
 
-        @keyframes neonFlicker { 0%, 100% { opacity: 1; } 50% { opacity: 0.8; } }
+        @keyframes neonFlicker { 0%, 100% { opacity: 1; } 50% { opacity: 0.85; } }
 
-        .board { width: 100%; max-width: 1000px; display: flex; flex-direction: column; gap: 25px; }
+        .board { width: 100%; max-width: 1000px; display: flex; flex-direction: column; gap: 20px; }
 
         .card {
-            background: #151515; border: 3px solid #333; padding: 15px 30px;
+            background: var(--card-bg); border: 3px solid #333; padding: 15px 30px;
             display: grid; grid-template-columns: 80px 1fr auto; align-items: center;
-            box-shadow: 10px 10px 0px rgba(0,0,0,0.8); position: relative; transition: all 0.3s ease;
+            box-shadow: 8px 8px 0px rgba(0,0,0,0.8); position: relative; transition: all 0.3s ease;
         }
-        .card:nth-child(odd) { transform: rotate(-1.5deg); }
-        .card:nth-child(even) { transform: rotate(1.5deg); }
+        .card:nth-child(odd) { transform: rotate(-1deg); }
+        .card:nth-child(even) { transform: rotate(1deg); }
 
         .card.rank-1 { border-color: var(--dirty-yellow); background: #2a1f00; }
         .card.rank-1 .rank { color: var(--dirty-yellow); }
 
-        .rank { font-size: 3rem; color: #555; }
+        .rank { font-size: 2.8rem; color: #555; }
         .name-container { display: flex; flex-direction: column; justify-content: center; }
-        .name { font-size: 2.5rem; color: #eee; }
+        .name { font-size: 2.3rem; color: #eee; }
         
-        /* Блок статистики бомб */
         .battle-stats {
             font-family: 'VT323', monospace;
             font-size: 1.4rem;
@@ -73,43 +73,138 @@
             margin-top: 2px;
         }
 
-        .score-box { text-align: right; background: #000; padding: 10px; border: 2px dashed #444; }
-        .score { font-family: 'VT323', monospace; font-size: 3.5rem; color: var(--blood-red); }
-        .unit { font-family: 'VT323', monospace; font-size: 1.5rem; color: #777; }
+        .score-box { text-align: right; background: #000; padding: 8px 15px; border: 2px dashed #444; }
+        .score { font-family: 'VT323', monospace; font-size: 3.2rem; color: var(--blood-red); }
+        .unit { font-family: 'VT323', monospace; font-size: 1.3rem; color: #777; }
 
-        /* ОКНО БАТТЛА И ПОБЕДЫ */
+        /* ========================================================
+           СТИЛЬНЫЙ ОВЕРЛЕЙ БАТТЛА
+           ======================================================== */
         #battle-overlay {
             position: fixed; top: 0; left: 0; width: 100vw; height: 100vh;
-            background: rgba(10, 0, 0, 0.95);
+            background: rgba(5, 2, 2, 0.92);
+            backdrop-filter: blur(8px);
             display: none; flex-direction: column; align-items: center; justify-content: center;
-            z-index: 9999; text-align: center;
-            border: 15px solid var(--blood-red);
-            animation: warningPulse 0.5s infinite alternate;
+            z-index: 9999; padding: 20px;
         }
 
-        @keyframes warningPulse {
-            0% { border-color: var(--blood-red); box-shadow: inset 0 0 50px var(--blood-red); }
-            100% { border-color: var(--dirty-yellow); box-shadow: inset 0 0 100px var(--dirty-yellow); }
+        .battle-card {
+            background: #111;
+            border: 4px solid var(--blood-red);
+            box-shadow: 0 0 50px rgba(209, 17, 0, 0.6), inset 0 0 30px rgba(0,0,0,0.9);
+            border-radius: 20px;
+            padding: 40px 60px;
+            max-width: 900px;
+            width: 90%;
+            text-align: center;
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            position: relative;
+            animation: cardAppear 0.4s cubic-bezier(0.175, 0.885, 0.32, 1.275);
         }
 
-        .battle-title { font-size: 4rem; color: var(--dirty-yellow); text-shadow: 0 0 20px red; }
-        .battle-versus { font-size: 5rem; color: #fff; margin: 20px 0; }
-        .battle-status { font-family: 'VT323', monospace; font-size: 3rem; color: #00f0ff; }
+        @keyframes cardAppear {
+            0% { transform: scale(0.7); opacity: 0; }
+            100% { transform: scale(1); opacity: 1; }
+        }
 
-        .winner-mode {
+        .battle-badge {
+            background: var(--blood-red);
+            color: #fff;
+            font-family: 'Russo One', sans-serif;
+            font-size: 1.8rem;
+            padding: 8px 25px;
+            border-radius: 50px;
+            letter-spacing: 2px;
+            text-transform: uppercase;
+            box-shadow: 0 0 15px var(--blood-red);
+            margin-bottom: 25px;
+        }
+
+        .versus-container {
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            gap: 25px;
+            width: 100%;
+            margin: 20px 0 30px 0;
+        }
+
+        .player-box {
+            background: #1a1a1a;
+            border: 2px solid #333;
+            border-radius: 12px;
+            padding: 20px;
+            flex: 1;
+            max-width: 350px;
+            box-shadow: inset 0 0 15px #000;
+        }
+
+        .player-name {
+            font-family: 'Russo One', sans-serif;
+            font-size: 2.8rem;
+            color: #fff;
+            word-break: break-word;
+            text-shadow: 2px 2px 0 #000;
+        }
+
+        .vs-circle {
+            background: var(--dirty-yellow);
+            color: #000;
+            font-family: 'Russo One', sans-serif;
+            font-size: 2.2rem;
+            width: 70px;
+            height: 70px;
+            border-radius: 50%;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            box-shadow: 0 0 25px var(--dirty-yellow);
+            flex-shrink: 0;
+            transform: rotate(-5deg);
+        }
+
+        .battle-status-box {
+            background: #000;
+            border: 1px dashed var(--dirty-yellow);
+            padding: 12px 30px;
+            border-radius: 8px;
+            margin-top: 10px;
+        }
+
+        .battle-status-text {
+            font-family: 'VT323', monospace;
+            font-size: 2.2rem;
+            color: var(--dirty-yellow);
+            letter-spacing: 1px;
+        }
+
+        /* ПОБЕДНЫЙ РЕЖИМ */
+        .winner-card {
             border-color: var(--dirty-yellow) !important;
-            background: radial-gradient(circle, rgba(229,169,16,0.3) 0%, rgba(0,0,0,0.95) 100%) !important;
-        }
-        .winner-name {
-            font-size: 6rem !important;
-            color: var(--dirty-yellow) !important;
-            text-shadow: 0 0 30px var(--dirty-yellow), 0 0 60px red !important;
-            animation: winnerZoom 0.6s cubic-bezier(0.175, 0.885, 0.32, 1.275) infinite alternate;
+            box-shadow: 0 0 60px rgba(229, 169, 16, 0.7) !important;
+            background: radial-gradient(circle at center, #221a00 0%, #0d0d0d 100%) !important;
         }
 
-        @keyframes winnerZoom {
+        .winner-badge {
+            background: var(--dirty-yellow) !important;
+            color: #000 !important;
+            box-shadow: 0 0 20px var(--dirty-yellow) !important;
+        }
+
+        .winner-name-single {
+            font-family: 'Russo One', sans-serif;
+            font-size: 4.5rem;
+            color: var(--dirty-yellow);
+            text-shadow: 0 0 25px var(--dirty-yellow), 3px 3px 0 #000;
+            margin: 15px 0;
+            animation: winnerPulse 0.8s infinite alternate ease-in-out;
+        }
+
+        @keyframes winnerPulse {
             0% { transform: scale(1); }
-            100% { transform: scale(1.15); }
+            100% { transform: scale(1.08); }
         }
     </style>
 </head>
@@ -122,18 +217,40 @@
 
     <div class="board" id="board"></div>
 
+    <!-- ВСПЛЫВАЮЩЕЕ ОКТНО БАТТЛА -->
     <div id="battle-overlay">
-        <div class="battle-title" id="b-title">🚨 ВЫЗОВ НА БАТТЛ! 🚨</div>
-        <div class="battle-versus" id="b-vs">ИГРОК 1 💣 ИГРОК 2</div>
-        <div class="battle-status" id="b-status">ЖДЕМ ПОДТВЕРЖДЕНИЯ В TELEGRAM...</div>
+        <div class="battle-card" id="b-card">
+            <div class="battle-badge" id="b-badge">💣 ВЫЗОВ НА БАТТЛ «БОМБА» 💣</div>
+            
+            <div class="versus-container" id="b-vs-box">
+                <div class="player-box">
+                    <div class="player-name" id="p1-name">ИГРОК 1</div>
+                </div>
+                <div class="vs-circle">VS</div>
+                <div class="player-box">
+                    <div class="player-name" id="p2-name">ИГРОК 2</div>
+                </div>
+            </div>
+
+            <!-- Блок для одного победителя -->
+            <div class="winner-name-single" id="winner-single" style="display: none;"></div>
+
+            <div class="battle-status-box">
+                <div class="battle-status-text" id="b-status">ОЖИДАНИЕ ПОДТВЕРЖДЕНИЯ В TELEGRAM...</div>
+            </div>
+        </div>
     </div>
 
     <script>
         const socket = io();
         const board = document.getElementById('board');
         const overlay = document.getElementById('battle-overlay');
-        const bTitle = document.getElementById('b-title');
-        const bVs = document.getElementById('b-vs');
+        const bCard = document.getElementById('b-card');
+        const bBadge = document.getElementById('b-badge');
+        const bVsBox = document.getElementById('b-vs-box');
+        const p1Name = document.getElementById('p1-name');
+        const p2Name = document.getElementById('p2-name');
+        const winnerSingle = document.getElementById('winner-single');
         const bStatus = document.getElementById('b-status');
 
         async function updateLeaderboard() {
@@ -182,39 +299,48 @@
         updateLeaderboard();
         socket.on('update_board', updateLeaderboard);
 
+        // 1. Вызов брошен
         socket.on('battle_announced', (data) => {
-            overlay.classList.remove('winner-mode');
-            bTitle.innerText = "💣 ВЫЗОВ НА БАТТЛ «БОМБА»! 💣";
-            bVs.innerText = `${data.challengerName} ⚔️ ${data.targetName}`;
-            bStatus.innerText = "ОЖИДАНИЕ ПОДТВЕРЖДЕНИЯ В TELEGRAM...";
+            bCard.className = "battle-card";
+            bBadge.className = "battle-badge";
+            bBadge.innerText = "💣 ВЫЗОВ НА БАТТЛ «БОМБА» 💣";
+            
+            bVsBox.style.display = "flex";
+            winnerSingle.style.display = "none";
+
+            p1Name.innerText = data.challengerName;
+            p2Name.innerText = data.targetName;
+            bStatus.innerText = "ЖДЁМ ПОДТВЕРЖДЕНИЯ В TELEGRAM...";
             overlay.style.display = 'flex';
         });
 
+        // 2. Баттл принят
         socket.on('battle_accepted', (data) => {
-            overlay.classList.remove('winner-mode');
-            bTitle.innerText = "🔥 БАТТЛ ПРИНЯТ! 🔥";
-            bVs.innerText = `${data.challengerName} VS ${data.targetName}`;
+            bBadge.innerText = "🔥 БАТТЛ ПРИНЯТ! 🔥";
             bStatus.innerText = "БАРМЕН, ГОТОВЬ БОМБЫ! ВСЕ К СТОЙКЕ!";
         });
 
+        // 3. Отказ от баттла
         socket.on('battle_declined', (data) => {
-            bTitle.innerText = "🐔 СОПЕРНИК СЛИЛСЯ! 🐔";
-            bVs.innerText = `${data.targetName} зассал вызова`;
-            bStatus.innerText = "ОТМЕНА ДУЭЛИ";
+            bBadge.innerText = "🐔 ВЫЗОВ ОТКЛОНЁН 🐔";
+            bStatus.innerText = `${data.targetName} зассал(а) принимать вызов!`;
             setTimeout(() => { overlay.style.display = 'none'; }, 4000);
         });
 
+        // 4. Выявление победителя
         socket.on('battle_winner_announcement', (data) => {
-            overlay.classList.add('winner-mode');
-            bTitle.innerText = "👑 ПОБЕДИТЕЛЬ БАТТЛА! 👑";
-            bVs.className = "battle-versus winner-name";
-            bVs.innerText = data.winnerName;
+            bCard.className = "battle-card winner-card";
+            bBadge.className = "battle-badge winner-badge";
+            bBadge.innerText = "👑 ПОБЕДИТЕЛЬ БАТТЛА 👑";
+
+            bVsBox.style.display = "none";
+            winnerSingle.style.display = "block";
+            winnerSingle.innerText = data.winnerName;
+
             bStatus.innerText = "💣 +1 БОМБА И 👑 ПОБЕДА ЗАЧИСЛЕНЫ!";
-            
+
             setTimeout(() => {
                 overlay.style.display = 'none';
-                overlay.classList.remove('winner-mode');
-                bVs.className = "battle-versus";
             }, 7000);
         });
     </script>
